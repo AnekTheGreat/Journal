@@ -78,13 +78,22 @@ jobs:
           done
           echo "signed and packaged: $APK ($(du -h "$APK" | cut -f1)), $AAB ($(du -h "$AAB" | cut -f1))"
 
+      # Flat, versioned names in one folder, the way a release is laid out - the same shape
+      # SideCut's releases have, where the APK and the AAB sit side by side.
+      - name: Name the outputs
+        run: |
+          V="1.0.${GITHUB_RUN_NUMBER}"
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk        "dist/UJournal-$V-debug.apk"
+          cp app/build/outputs/apk/release/app-release.apk    "dist/UJournal-$V.apk"
+          cp app/build/outputs/bundle/debug/app-debug.aab     "dist/UJournal-$V-debug.aab"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/UJournal-$V.aab"
+          echo '--- dist ---'
+          ls -l dist
+
       - name: Upload APKs and AABs
         uses: actions/upload-artifact@v4
         with:
           name: UJournal-${{ github.run_number }}
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/debug/*.aab
-            app/build/outputs/bundle/release/*.aab
+          path: dist/*
           if-no-files-found: error

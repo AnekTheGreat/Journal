@@ -2,3 +2,8 @@
 build/
 local.properties
 .idea/
+.kotlin/
+*.apk
+captures/
+keystore.properties
+.DS_Store

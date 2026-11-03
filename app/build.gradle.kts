@@ -4,6 +4,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Signing comes from the environment, so no key material is ever in this repository. CI writes
+// the keystore out of the KEYSTORE_BASE64 secret and points SIGNING_STORE_FILE at it; a local
+// build without those variables still assembles debug, and its release build is simply unsigned.
+val signingStore = System.getenv("SIGNING_STORE_FILE")
+val storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+val keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: storePassword
+val keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "ujournal"
+
 android {
     namespace = "app.ujournal"
     compileSdk = 34
@@ -19,18 +27,21 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = rootProject.file("ujournal.jks")
-            storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: "ujournal123"
-            keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "ujournal"
-            keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: "ujournal123"
+        // Only configured when the key is actually present, so a checkout with no secrets builds.
+        if (signingStore != null && storePassword != null) {
+            create("release") {
+                storeFile = file(signingStore)
+                storePassword = storePassword
+                keyAlias = keyAlias
+                keyPassword = keyPassword
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

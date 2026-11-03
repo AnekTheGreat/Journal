@@ -18,7 +18,6 @@ app/src/main/java/app/ujournal/
   Updater.kt        GitHub Release check, APK download, install intent
   Theme.kt          colours and the Material3 theme
 app/src/main/res/   manifest resources (theme, strings, icon, file paths)
-ujournal.jks        release signing keystore (used by the release workflow)
 ```
 
 ## Build
@@ -27,7 +26,7 @@ Needs JDK 17 and the Android SDK with platform 34.
 
 ```sh
 gradle :app:assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-gradle :app:assembleRelease      # signed with ujournal.jks
+gradle :app:assembleRelease      # signed only when the signing variables below are set
 ```
 
 `VERSION_NAME` (default `1.0.0`) and `GITHUB_RUN_NUMBER` (used as `versionCode`) are read from
@@ -36,7 +35,7 @@ the environment, so CI decides the version and local builds stay at `1`.
 ## Actions
 
 - **Build APK** (`.github/workflows/build.yml`) — runs on every push to `main`, on pull requests
-  and on demand. Assembles the debug and release APK and uploads both as one artifact.
+  and on demand. Assembles the debug and the signed release APK and uploads both as one artifact.
 - **Release APK** (`.github/workflows/release.yml`) — runs on a `v*` tag, or on demand with a
   version input. Builds the signed APK and publishes it as a GitHub Release, which is what the
   in-app updater reads.
@@ -47,6 +46,26 @@ git tag v1.0.1 && git push origin v1.0.1
 
 ## Signing
 
-The release keystore is committed as `ujournal.jks`. To use a different key, set
-`SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD` in the environment
-(locally) or as repository secrets and pass them to the build step.
+There is no keystore and no password in this repository. The release key is base64-encoded in the
+repository's Actions secrets, and both workflows rebuild it in `$RUNNER_TEMP` for the length of the
+job:
+
+| Secret | What it holds |
+| --- | --- |
+| `KEYSTORE_BASE64` | the keystore, base64-encoded: `base64 -w0 ujournal.jks` |
+| `KEYSTORE_PASSWORD` | the keystore password |
+| `KEY_PASSWORD` | the key password (alias is `ujournal`) |
+
+Without them nothing breaks locally: `assembleDebug` works and `assembleRelease` produces an
+unsigned APK that Android will refuse to install. To sign a release by hand:
+
+```sh
+export SIGNING_STORE_FILE=/absolute/path/ujournal.jks
+export SIGNING_STORE_PASSWORD=...
+export SIGNING_KEY_PASSWORD=...
+export SIGNING_KEY_ALIAS=ujournal
+gradle :app:assembleRelease
+```
+
+Keep that keystore somewhere safe: Android only installs an update signed with the same key, so
+losing it means every installed copy has to be uninstalled and replaced.

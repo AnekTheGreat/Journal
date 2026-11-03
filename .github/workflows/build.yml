@@ -31,9 +31,25 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      # No key material is in the repository. The keystore arrives from the KEYSTORE_BASE64
+      # secret and exists only for the length of this job, in the runner's temp directory.
+      - name: Reconstruct the signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::the KEYSTORE_BASE64 secret is not set for this repository"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ujournal.jks"
+          echo "SIGNING_STORE_FILE=$RUNNER_TEMP/ujournal.jks" >> "$GITHUB_ENV"
+
       - name: Assemble
         env:
           VERSION_NAME: 1.0.${{ github.run_number }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          SIGNING_KEY_ALIAS: ujournal
         run: gradle :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
 
       - name: Upload APKs

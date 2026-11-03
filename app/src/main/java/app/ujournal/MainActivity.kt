@@ -130,9 +130,15 @@ fun UpdateDialog(u: Update, onDismiss: () -> Unit) {
 @Composable
 fun Timeline(entries: List<Entry>, store: Store, onOpen: (LocalDate) -> Unit) {
     if (entries.isEmpty()) {
-        Box(Modifier.fillMaxSize(), Alignment.Center) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text("Your journal is waiting.\nTap ＋ to write today.", textAlign = TextAlign.Center,
                 color = Muted, fontFamily = FontFamily.Serif, fontSize = 18.sp)
+            Spacer(Modifier.height(26.dp))
+            SupportCard()
         }
         return
     }
@@ -149,6 +155,54 @@ fun Timeline(entries: List<Entry>, store: Store, onOpen: (LocalDate) -> Unit) {
                 items(me, key = { it.date.toString() }) { e -> EntryCard(e, store, onOpen) }
             }
         }
+        item(key = "support") { SupportCard() }
+    }
+}
+
+/**
+ * The tip jar, as one quiet card: what SideCut does with Stripe Payment Links, minus the tab. It
+ * sits under the last entry so it is found after the journal has been read, and it opens a page
+ * Stripe hosts rather than asking the app for anything.
+ */
+@Composable
+fun SupportCard() {
+    val ctx = LocalContext.current
+    var ask by remember { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(CardC)
+            .clickable { ask = true }.padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Support UJournal", fontFamily = FontFamily.Serif, fontSize = 16.sp, color = Ink)
+            Text("A tip is paid through Stripe, on a card page of its own.",
+                color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+        }
+        Text("♥", color = Tan, fontSize = 20.sp)
+    }
+    if (ask) {
+        AlertDialog(
+            onDismissRequest = { ask = false },
+            containerColor = CardC,
+            title = { Text("Support UJournal", fontFamily = FontFamily.Serif) },
+            text = {
+                Column {
+                    Text(
+                        "UJournal is free and has no ads. Stripe takes the payment on its own page; " +
+                            "nothing unlocks, because this is a thank you.",
+                        color = Muted, fontSize = 13.sp, lineHeight = 19.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Support.LINKS.forEach { (dollars, url) ->
+                        TextButton(
+                            onClick = { ask = false; Support.open(ctx, url) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(Support.label(dollars), color = Ink, fontSize = 15.sp) }
+                    }
+                }
+            },
+            confirmButton = { TextButton({ ask = false }) { Text("Later", color = Muted) } }
+        )
     }
 }
 

@@ -44,10 +44,10 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ujournal.jks"
           echo "SIGNING_STORE_FILE=$RUNNER_TEMP/ujournal.jks" >> "$GITHUB_ENV"
 
-      # Both formats, both build types: assemble* = APK, bundle* = AAB.
+      # Both formats, both build types: assemble* = APK, bundle* = AAB. The version is whatever
+      # build.gradle.kts says, so this build and the release it is compared against agree.
       - name: Assemble
         env:
-          VERSION_NAME: 1.0.${{ github.run_number }}
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ujournal
@@ -79,10 +79,13 @@ jobs:
           echo "signed and packaged: $APK ($(du -h "$APK" | cut -f1)), $AAB ($(du -h "$AAB" | cut -f1))"
 
       # Flat, versioned names in one folder, the way a release is laid out - the same shape
-      # SideCut's releases have, where the APK and the AAB sit side by side.
+      # SideCut's releases have, where the APK and the AAB sit side by side. The version comes
+      # from build.gradle.kts: an artifact named after the run number could not be told apart
+      # from the release it is supposed to replace.
       - name: Name the outputs
         run: |
-          V="1.0.${GITHUB_RUN_NUMBER}"
+          V="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+          if [ -z "$V" ]; then echo "::error::could not read versionName"; exit 1; fi
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk        "dist/UJournal-$V-debug.apk"
           cp app/build/outputs/apk/release/app-release.apk    "dist/UJournal-$V.apk"
@@ -94,6 +97,6 @@ jobs:
       - name: Upload APKs and AABs
         uses: actions/upload-artifact@v4
         with:
-          name: UJournal-${{ github.run_number }}
+          name: UJournal-apk-aab
           path: dist/*
           if-no-files-found: error

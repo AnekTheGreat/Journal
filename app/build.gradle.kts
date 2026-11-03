@@ -24,8 +24,15 @@ android {
         applicationId = "app.ujournal"
         minSdk = 26
         targetSdk = 34
-        versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
+        // The version lives here, not in the run that built it. It used to be the workflow's run
+        // number, which meant a build from a later run carried a higher versionCode than the
+        // release cut before it - and Android refuses such a release as a downgrade: the download
+        // finished, the installer opened, and the update silently did not happen. The code is now
+        // computed from the name and only ever goes up: 1.2.0 -> 10200.
+        versionName = "1.2.0"
+        versionCode = versionName!!.split(".").let { p ->
+            p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
+        }
         // Where the in-app updater looks for new releases (the repo must be public).
         buildConfigField("String", "GITHUB_REPO", "\"AnekTheGreat/Journal\"")
     }

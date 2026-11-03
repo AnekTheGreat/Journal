@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, e.g. 1.0.0'
+        description: 'Version to publish, e.g. 1.2.0'
         required: true
 
 permissions:
@@ -53,10 +53,21 @@ jobs:
           echo "name=$V" >> "$GITHUB_OUTPUT"
           echo "releasing $V"
 
+      # The APK carries the version in build.gradle.kts, and the app's updater compares its own
+      # version with the release tag. If the two disagree, every installed copy is offered a
+      # release it will then refuse to install, so the mismatch stops the run here instead.
+      - name: Check the tag matches the version the APK will carry
+        run: |
+          BUILT="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+          echo "tag says ${{ steps.v.outputs.name }}, gradle says $BUILT"
+          if [ "$BUILT" != "${{ steps.v.outputs.name }}" ]; then
+            echo "::error::build.gradle.kts names $BUILT but this release is ${{ steps.v.outputs.name }}"
+            exit 1
+          fi
+
       # A release publishes both formats: the APK for a phone, the AAB for Play Console.
       - name: Build signed release APK and AAB
         env:
-          VERSION_NAME: ${{ steps.v.outputs.name }}
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ujournal

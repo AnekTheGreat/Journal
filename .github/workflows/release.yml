@@ -78,11 +78,14 @@ jobs:
           [ "$STATUS" -eq 0 ] || exit 1
           cp "$APK" "UJournal-${{ steps.v.outputs.name }}.apk"
           cp "$AAB" "UJournal-${{ steps.v.outputs.name }}.aab"
+          ls -l UJournal-*
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.v.outputs.name }}
           name: UJournal ${{ steps.v.outputs.name }}
-          files: UJournal-*
+          files: |
+            UJournal-${{ steps.v.outputs.name }}.apk
+            UJournal-${{ steps.v.outputs.name }}.aab
           generate_release_notes: true

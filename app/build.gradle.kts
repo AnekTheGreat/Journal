@@ -7,10 +7,14 @@ plugins {
 // Signing comes from the environment, so no key material is ever in this repository. CI writes
 // the keystore out of the KEYSTORE_BASE64 secret and points SIGNING_STORE_FILE at it; a local
 // build without those variables still assembles debug, and its release build is simply unsigned.
-val signingStore = System.getenv("SIGNING_STORE_FILE")
-val storePassword = System.getenv("SIGNING_STORE_PASSWORD")
-val keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: storePassword
-val keyAlias = System.getenv("SIGNING_KEY_ALIAS") ?: "ujournal"
+//
+// The names are deliberately not storePassword/keyPassword/keyAlias: inside the
+// signingConfigs block those are the DSL's own properties, and a local val of the same name would
+// win the lookup on the right of the assignment.
+val signingStorePath: String? = System.getenv("SIGNING_STORE_FILE")
+val signingStorePass: String? = System.getenv("SIGNING_STORE_PASSWORD")
+val signingKeyPass: String? = System.getenv("SIGNING_KEY_PASSWORD") ?: signingStorePass
+val signingAlias: String = System.getenv("SIGNING_KEY_ALIAS") ?: "ujournal"
 
 android {
     namespace = "app.ujournal"
@@ -28,12 +32,12 @@ android {
 
     signingConfigs {
         // Only configured when the key is actually present, so a checkout with no secrets builds.
-        if (signingStore != null && storePassword != null) {
+        if (signingStorePath != null && signingStorePass != null) {
             create("release") {
-                storeFile = file(signingStore)
-                storePassword = storePassword
-                keyAlias = keyAlias
-                keyPassword = keyPassword
+                storeFile = file(signingStorePath)
+                storePassword = signingStorePass
+                keyAlias = signingAlias
+                keyPassword = signingKeyPass
             }
         }
     }

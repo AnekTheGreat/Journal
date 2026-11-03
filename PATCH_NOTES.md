@@ -5,19 +5,32 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.2.1 — the update is published the way the other apps publish it
+
+### Changed
+- **A manifest travels with the release.** `updates.json` — version, file name, size, notes — is
+  written by the release job and attached beside the APK and AAB, exactly as SideCut publishes
+  `ota/updates.json`, MeasureT publishes `updates.json` and FamTM publishes its page. The app reads
+  that one fixed address (`releases/latest/download/updates.json`) and takes both the version to
+  compare and the notes to show from it, so the changelog comes with the build instead of being
+  reconstructed from an API response. The API and the releases feed remain as fallbacks for a
+  release that predates the manifest.
+
+### Fixed
+- `versionName` is read by the release job for its tag check, so the manifest can no longer
+  advertise a version the APK does not carry.
+
 ## 2026-11-03 — updates that install
 
 ### Fixed
 - **A release could not be installed over a build.** `versionCode` came from the workflow's run
   number, so a build from a later run carried a higher code than the release cut before it, and
   Android rejects a lower code as a downgrade: the download finished, the installer opened, and
-  nothing changed. The code is now computed from the version in `build.gradle.kts` — 1.2.0 is
-  10200 — so every release installs over what came before it.
+  nothing changed. The code is now computed from the version in `build.gradle.kts` — 1.2.1 is
+  10201 — so every release installs over what came before it.
 - **A check could fail without saying anything.** The request to `api.github.com` carried no
   `User-Agent`, which GitHub answers with 403, and the anonymous allowance is per address — a phone
-  on a carrier shares one with everything behind that gateway. Requests now identify the app, and
-  when the API refuses, the newest tag is read from the repository's releases feed instead, with the
-  APK URL built from it.
+  on a carrier shares one with everything behind that gateway. Requests now identify the app.
 - A download is checked to be a zip, of a plausible size, before the installer is handed it; an
   error page saved as `.apk` used to surface as "there was a problem parsing the package". The
   connection has timeouts now instead of hanging, and a failed check leaves a line in logcat.

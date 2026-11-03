@@ -26,10 +26,9 @@ android {
         targetSdk = 34
         // The version lives here, not in the run that built it. It used to be the workflow's run
         // number, which meant a build from a later run carried a higher versionCode than the
-        // release cut before it - and Android refuses such a release as a downgrade: the download
-        // finished, the installer opened, and the update silently did not happen. The code is now
-        // computed from the name and only ever goes up: 1.2.0 -> 10200.
-        versionName = "1.2.0"
+        // release cut before it - and Android refuses such a release as a downgrade. The code is
+        // computed from the name and only ever goes up: 1.2.1 -> 10201.
+        versionName = "1.2.1"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }

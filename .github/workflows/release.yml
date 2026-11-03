@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, e.g. 1.2.0'
+        description: 'Version to publish, e.g. 1.2.1'
         required: true
 
 permissions:
@@ -54,8 +54,8 @@ jobs:
           echo "releasing $V"
 
       # The APK carries the version in build.gradle.kts, and the app's updater compares its own
-      # version with the release tag. If the two disagree, every installed copy is offered a
-      # release it will then refuse to install, so the mismatch stops the run here instead.
+      # version with this release. If the two disagree, every installed copy is offered a release
+      # it will then refuse to install, so the mismatch stops the run here instead.
       - name: Check the tag matches the version the APK will carry
         run: |
           BUILT="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
@@ -91,6 +91,39 @@ jobs:
           cp "$AAB" "UJournal-${{ steps.v.outputs.name }}.aab"
           ls -l UJournal-*
 
+      # The manifest the installed app reads, the same one every other app here publishes beside
+      # itself: version, the file to fetch, its size, and the notes for it taken from PATCH_NOTES.
+      # releases/latest/download/updates.json always resolves to the newest release's copy.
+      - name: Write the update manifest
+        run: |
+          python3 - "${{ steps.v.outputs.name }}" "UJournal-${{ steps.v.outputs.name }}.apk" <<'PY'
+          import json, os, re, sys
+          version, apk = sys.argv[1], sys.argv[2]
+          notes = []
+          try:
+              md = open('PATCH_NOTES.md', encoding='utf-8').read()
+              m = re.search(r'^##\s+' + re.escape(version) + r'\b.*?$(.*?)(?=^##\s|\Z)', md, re.S | re.M)
+              if m is None:
+                  m = re.search(r'^##\s+.*?$(.*?)(?=^##\s|\Z)', md, re.S | re.M)
+              if m:
+                  for line in m.group(1).splitlines():
+                      line = line.strip()
+                      if line.startswith(('- ', '* ')):
+                          notes.append(re.sub(r'\*\*|`', '', line[2:].strip()))
+          except OSError:
+              pass
+          manifest = {
+              'version': version,
+              'apk': apk,
+              'size': os.path.getsize(apk),
+              'notes': notes[:6],
+              'date': '',
+          }
+          with open('updates.json', 'w', encoding='utf-8') as f:
+              json.dump(manifest, f, ensure_ascii=False)
+          print(open('updates.json', encoding='utf-8').read())
+          PY
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -99,4 +132,5 @@ jobs:
           files: |
             UJournal-${{ steps.v.outputs.name }}.apk
             UJournal-${{ steps.v.outputs.name }}.aab
+            updates.json
           generate_release_notes: true

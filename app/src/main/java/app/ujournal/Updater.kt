@@ -18,20 +18,24 @@ import java.net.URL
 data class Update(val version: String, val url: String, val notes: String)
 
 /**
- * OTA updates: checks the latest GitHub Release, downloads the APK, hands it to the installer.
+ * OTA updates: read what the newest release is, download the APK, hand it to the installer.
  *
- * Two things a phone does that a laptop never shows: it may be behind a carrier gateway that shares
- * one address with thousands of other people, so api.github.com's anonymous allowance is used up by
- * strangers, and its HTTP stack's default headers are not guaranteed. Both are handled here - the
- * request says who it is, and a refused API call falls back to the repository's releases feed, which
- * has no limit and needs no credentials.
+ * The answer comes from a manifest published WITH the release — the same shape SideCut's
+ * ota/updates.json, MeasureT's updates.json and FamTM's published page use: a version, the file,
+ * its size and the notes for it. One fixed URL, so there is no API to rate-limit and no release tag
+ * to parse, and the changelog travels with the build instead of being reconstructed on the phone.
+ * The GitHub API and the releases feed stay behind it as fallbacks.
  */
 object Updater {
 
     private const val TAG = "UJournalUpdater"
 
-    private fun apiUrl() = "https://api.github.com/repos/${BuildConfig.GITHUB_REPO}/releases/latest"
-    private fun feedUrl() = "https://github.com/${BuildConfig.GITHUB_REPO}/releases.atom"
+    private val repo get() = BuildConfig.GITHUB_REPO
+    private fun manifestUrl() =
+        "https://github.com/$repo/releases/latest/download/updates.json"
+    private fun downloads() = "https://github.com/$repo/releases/download"
+    private fun apiUrl() = "https://api.github.com/repos/$repo/releases/latest"
+    private fun feedUrl() = "https://github.com/$repo/releases.atom"
 
     /** GitHub answers 403 to a request with no User-Agent, so one is always sent. */
     private fun open(url: String): HttpURLConnection =
@@ -43,8 +47,45 @@ object Updater {
         }
 
     suspend fun check(): Update? = withContext(Dispatchers.IO) {
+        val manifest = manifestJson()
+        if (manifest != null) return@withContext fromManifest(manifest)
         val json = apiJson()
         if (json != null) fromJson(json) else fromFeed()
+    }
+
+    private fun manifestJson(): String? = try {
+        val c = open(manifestUrl())
+        val code = c.responseCode
+        if (code == 200) c.inputStream.bufferedReader().use { it.readText() } else {
+            Log.w(TAG, "no manifest at the newest release ($code)")
+            null
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "manifest unreachable: ${e.javaClass.simpleName}")
+        null
+    }
+
+    /** {"version","apk","size","notes","date"} — the manifest every app here publishes. */
+    private fun fromManifest(text: String): Update? = try {
+        val j = JSONObject(text)
+        val v = j.optString("version").removePrefix("v")
+        val apk = j.optString("apk")
+        when {
+            v.isEmpty() || apk.isEmpty() -> {
+                Log.w(TAG, "the manifest names no version or no APK")
+                null
+            }
+            !newer(v, BuildConfig.VERSION_NAME) -> null
+            else -> {
+                val notes = j.optJSONArray("notes")?.let { a ->
+                    (0 until a.length()).joinToString("\n") { a.optString(it) }
+                } ?: ""
+                Update(v, "${downloads()}/v$v/$apk", notes)
+            }
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "unreadable manifest: ${e.javaClass.simpleName}")
+        null
     }
 
     private fun apiJson(): String? = try {
@@ -108,7 +149,7 @@ object Updater {
                 if (!newer(v, BuildConfig.VERSION_NAME)) null
                 else Update(
                     v,
-                    "https://github.com/${BuildConfig.GITHUB_REPO}/releases/download/$tag/UJournal-$v.apk",
+                    "${downloads()}/$tag/UJournal-$v.apk",
                     "Published on GitHub."
                 )
             }

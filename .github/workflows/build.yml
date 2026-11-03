@@ -52,6 +52,18 @@ jobs:
           SIGNING_KEY_ALIAS: ujournal
         run: gradle :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
 
+      # An unsigned build is not a failed build, so the output has to be named to be checked:
+      # AGP writes app-release-unsigned.apk when no signing config reached it.
+      - name: Check the release APK is signed
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$APK" ]; then
+            echo "::error::the release APK is unsigned - the signing secrets did not reach the build"
+            ls -l app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          echo "signed and packaged: $APK ($(du -h "$APK" | cut -f1))"
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:

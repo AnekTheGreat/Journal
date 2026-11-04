@@ -15,15 +15,35 @@ data class Entry(val date: LocalDate, val title: String, val body: String, val a
 data class Journal(val id: String, val name: String, val created: String, val entries: Int, val last: String?)
 
 /**
+ * A plan is something that happens on a day: an hour on a Tuesday, something that runs over several
+ * days, or a birthday that comes round every year. [start] and [end] are dates, and the times are
+ * "HH:MM" or empty - empty means all day. A birthday has no end of its own: it is one day, repeating.
+ */
+data class Plan(
+    val id: String,
+    val title: String,
+    val start: String,
+    val startTime: String,
+    val end: String,
+    val endTime: String,
+    val kind: String,
+    val note: String
+)
+
+/**
  * Plain files, one folder per journal:
  *
- *   journals/<id>/journal.json        {"name":"...","created":"YYYY-MM-DD"}
+ *   journals/<id>/journal.json        {"name":"...","created":"YYYY-MM-DD","plans":[...]}
  *   journals/<id>/YYYY-MM-DD/entry.json + attachments beside it
  *
  * A journal is a book, and there can be more than one, which is why a day is addressed through the
  * book it lives in. [current] is the one the page is looking at; [journals] is the shelf. The folder
  * 1.3 wrote - filesDir/journal - is moved into this shape once, on the first launch after the
  * update, so an existing journal becomes the first book and no entry is left behind.
+ *
+ * Plans live in the same journal.json as the name, because that file is what a backup already copies
+ * for each book: the calendar travels to a new phone with the entries instead of needing a format of
+ * its own, and a restore puts it back without a line of new code.
  */
 class Store(ctx: Context) {
     private val cr = ctx.contentResolver
@@ -129,6 +149,80 @@ class Store(ctx: Context) {
         .filter { it.title.isNotBlank() || it.body.isNotBlank() || it.atts.isNotEmpty() }
         .sortedByDescending { it.date }
 
+    // ---- plans ----
+
+    /**
+     * Every plan in the open book, soonest first. One whose start is not a real date is dropped
+     * rather than drawn as a broken row, so a hand-edited file cannot stop the book from opening.
+     */
+    fun plans(): List<Plan> {
+        val arr = runCatching { meta(File(root, current)).optJSONArray(PLANS) }.getOrNull()
+            ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { i ->
+            val o = runCatching { arr.getJSONObject(i) }.getOrNull() ?: return@mapNotNull null
+            val start = o.optString("start")
+            if (!DATE.matches(start)) return@mapNotNull null
+            val birthday = o.optString("kind") == "birthday"
+            Plan(
+                id = o.optString("id").ifBlank { "p" + start.replace("-", "") },
+                title = o.optString("title"),
+                start = start,
+                startTime = if (birthday) "" else time(o.optString("startTime")),
+                end = o.optString("end").ifBlank { start },
+                endTime = if (birthday) "" else time(o.optString("endTime")),
+                kind = if (birthday) "birthday" else "event",
+                note = o.optString("note")
+            )
+        }.sortedWith(compareBy({ it.start }, { it.startTime }))
+    }
+
+    /** Save a plan beside the others in this book, and hand it back with the id it was given. */
+    fun savePlan(p: Plan): Plan {
+        val id = if (ID.matches(p.id)) p.id else "p" + System.currentTimeMillis().toString(36)
+        val start = if (DATE.matches(p.start)) p.start else LocalDate.now().toString()
+        val end = if (DATE.matches(p.end) && p.end >= start) p.end else start
+        val birthday = p.kind == "birthday"
+        val clean = Plan(
+            id = id,
+            title = p.title.trim().take(80).ifBlank { "Untitled plan" },
+            start = start,
+            startTime = if (birthday) "" else time(p.startTime),
+            end = if (birthday) start else end,
+            endTime = if (birthday) "" else time(p.endTime),
+            kind = if (birthday) "birthday" else "event",
+            note = p.note.trim().take(2000)
+        )
+        writePlans(plans().filter { it.id != id } + clean)
+        return clean
+    }
+
+    fun removePlan(id: String) {
+        if (id.isBlank()) return
+        writePlans(plans().filter { it.id != id })
+    }
+
+    private fun writePlans(list: List<Plan>) {
+        val d = File(root, current).apply { mkdirs() }
+        val arr = JSONArray()
+        list.sortedWith(compareBy({ it.start }, { it.startTime })).forEach { p ->
+            arr.put(
+                JSONObject().put("id", p.id).put("title", p.title).put("start", p.start)
+                    .put("startTime", p.startTime).put("end", p.end).put("endTime", p.endTime)
+                    .put("kind", p.kind).put("note", p.note)
+            )
+        }
+        runCatching { File(d, META).writeText(meta(d).put(PLANS, arr).toString()) }
+    }
+
+    /** "9:5" and "09:05" both come back as "09:05"; anything that is not a time comes back empty. */
+    private fun time(t: String): String {
+        val m = Regex("([0-9]{1,2}):([0-9]{2})").find(t.trim()) ?: return ""
+        val h = m.groupValues[1].toIntOrNull() ?: return ""
+        val min = m.groupValues[2].toIntOrNull() ?: return ""
+        if (h !in 0..23 || min !in 0..59) return ""
+        return (if (h < 10) "0" else "") + h + ":" + (if (min < 10) "0" else "") + min
+    }
+
     fun attach(e: Entry, uris: List<Uri>): Entry {
         val d = dir(e.date).apply { mkdirs() }
         val added = uris.mapNotNull { u ->
@@ -177,6 +271,9 @@ class Store(ctx: Context) {
         const val DIR = "journals"
         const val OLD = "journal"
         const val META = "journal.json"
+
+        /** The key plans are kept under in journal.json, beside the name. */
+        const val PLANS = "plans"
 
         /** A folder name this store wrote: short, and no path in it. */
         val ID = Regex("[A-Za-z0-9_-]{1,40}")

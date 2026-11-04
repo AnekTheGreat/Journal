@@ -1,5 +1,8 @@
 package app.ujournal
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.webkit.JavascriptInterface
 import org.json.JSONArray
 import org.json.JSONObject
@@ -9,10 +12,10 @@ import java.time.LocalDate
  * Everything the page is allowed to ask the phone for, and nothing more.
  *
  * The screen is `assets/index.html`, so the parts that cannot live in a page live here: the shelf of
- * journals, the entries on disk, the pickers and the recorder, the tip links, the update, and the one
- * file a journal can be carried to a new phone in. Each method is a small, named promise - the page
- * cannot reach a file, a database or an intent that is not spelled out below, which is what makes an
- * over-the-air screen safe to accept.
+ * journals, the entries on disk, the plans in the calendar, the pickers and the recorder, the tip
+ * links, the update, and the one file a journal can be carried to a new phone in. Each method is a
+ * small, named promise - the page cannot reach a file, a database or an intent that is not spelled
+ * out below, which is what makes an over-the-air screen safe to accept.
  *
  * These are called on the WebView's JavaScript thread, so anything that touches the UI is handed to
  * the activity's main thread first.
@@ -76,6 +79,38 @@ class Bridge(private val ui: MainActivity) {
         return all.toString()
     }
 
+    /** The open book's plans: timed, over several days, and the birthdays that repeat every year. */
+    @JavascriptInterface
+    fun plans(): String {
+        val all = JSONArray()
+        runCatching { store.plans().forEach { all.put(JSONObject(planJson(it))) } }
+        return all.toString()
+    }
+
+    /** Save one plan and hand it back, so the page can draw the row the shell actually wrote. */
+    @JavascriptInterface
+    fun savePlan(json: String): String = runCatching {
+        val o = JSONObject(json)
+        val start = o.optString("start").ifBlank { LocalDate.now().toString() }
+        planJson(
+            store.savePlan(
+                Plan(
+                    id = o.optString("id"),
+                    title = o.optString("title"),
+                    start = start,
+                    startTime = o.optString("startTime"),
+                    end = o.optString("end").ifBlank { start },
+                    endTime = o.optString("endTime"),
+                    kind = o.optString("kind").ifBlank { "event" },
+                    note = o.optString("note")
+                )
+            )
+        )
+    }.getOrDefault("")
+
+    @JavascriptInterface
+    fun removePlan(id: String) = runCatching { store.removePlan(id) }.let { }
+
     @JavascriptInterface
     fun load(date: String): String =
         runCatching { json(store.load(LocalDate.parse(date))) }.getOrElse { "{}" }
@@ -121,6 +156,10 @@ class Bridge(private val ui: MainActivity) {
         Support.LINKS.firstOrNull { it.first == dollars }?.let { Support.open(ui, it.second) }
     }
 
+    /** The page names another app, never a URL: the addresses stay in [Siblings]. */
+    @JavascriptInterface
+    fun openApp(id: String): Boolean = Siblings.open(ui, id)
+
     /** One file with every journal, entry and attachment in it, written where the Save dialog points. */
     @JavascriptInterface
     fun backup() = main { ui.exportAll() }
@@ -138,6 +177,17 @@ class Bridge(private val ui: MainActivity) {
     @JavascriptInterface
     fun openRelease(version: String) = main { ui.openRelease(version) }
 
+    private fun planJson(p: Plan): String = JSONObject()
+        .put("id", p.id)
+        .put("title", p.title)
+        .put("start", p.start)
+        .put("startTime", p.startTime)
+        .put("end", p.end)
+        .put("endTime", p.endTime)
+        .put("kind", p.kind)
+        .put("note", p.note)
+        .toString()
+
     private fun json(e: Entry): String = JSONObject()
         .put("date", e.date.toString())
         .put("title", e.title)
@@ -154,4 +204,31 @@ class Bridge(private val ui: MainActivity) {
             }
         })
         .toString()
+}
+
+/**
+ * The other apps this collection has, each behind a name the page is allowed to say. The addresses
+ * live here and not in the page for the same reason the tip links do: an over-the-air screen can be
+ * replaced, so the set of places it can send someone is fixed by the app, not by the page.
+ */
+internal object Siblings {
+    private val APPS = listOf(
+        "journal" to "https://github.com/AnekTheGreat/Journal/releases/latest",
+        "famtm" to "https://github.com/AnekTheGreat/FamTM/releases/latest",
+        "myhub" to "https://github.com/AnekTheGreat/My-Hub/releases/latest",
+        "sidecut" to "https://anekthegreat.github.io/SideCut/",
+        "compass" to "https://github.com/AnekTheGreat/Compass-EDC"
+    )
+
+    fun url(id: String): String? = APPS.firstOrNull { it.first == id }?.second
+
+    fun open(ctx: Context, id: String): Boolean {
+        val address = url(id) ?: return false
+        return runCatching {
+            ctx.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(address)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            true
+        }.getOrDefault(false)
+    }
 }

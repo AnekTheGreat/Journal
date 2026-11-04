@@ -101,29 +101,32 @@ fun App(store: Store) {
     update?.let { u -> UpdateDialog(u) { update = null } }
 }
 
+/**
+ * The update is taken from the release page in the browser. The app downloads nothing and installs
+ * nothing: a sideloaded app that fetches code over the network and asks Android to install it is
+ * what Play Protect reads as a dropper, and that is the permission this dialog used to need.
+ */
 @Composable
 fun UpdateDialog(u: Update, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
     AlertDialog(
-        onDismissRequest = { if (!busy) onDismiss() },
+        onDismissRequest = onDismiss,
         containerColor = CardC,
         title = { Text("Update available", fontFamily = FontFamily.Serif) },
-        text = { Text("UJournal ${u.version} is ready." + if (u.notes.isNotBlank()) "\n\n" + u.notes.take(300) else "") },
-        confirmButton = {
-            TextButton(enabled = !busy, onClick = {
-                if (!Updater.ensurePermission(ctx)) return@TextButton
-                busy = true
-                scope.launch {
-                    val ok = Updater.download(ctx, u)
-                    busy = false
-                    if (ok) Updater.install(ctx)
-                    else Toast.makeText(ctx, "Download failed", Toast.LENGTH_SHORT).show()
-                }
-            }) { Text(if (busy) "Downloading…" else "Update", color = Ink) }
+        text = {
+            Text(
+                "UJournal ${u.version} is ready." +
+                    (if (u.notes.isNotBlank()) "\n\n" + u.notes.take(300) else "") +
+                    "\n\nThe release opens in your browser: the APK downloads there and your " +
+                    "phone's own installer takes it from outside the journal."
+            )
         },
-        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Later", color = Muted) } }
+        confirmButton = {
+            TextButton(onClick = { Updater.browse(ctx, u); onDismiss() }) {
+                Text("Open the release", color = Ink)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Later", color = Muted) } }
     )
 }
 

@@ -29,7 +29,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.11.1'
 
       # No key material is in the repository. The keystore arrives from the KEYSTORE_BASE64
       # secret and exists only for the length of this job, in the runner's temp directory.

@@ -18,17 +18,19 @@ val signingAlias: String = System.getenv("SIGNING_KEY_ALIAS") ?: "ujournal"
 
 android {
     namespace = "app.ujournal"
-    compileSdk = 34
+    // Google Play rejects an upload that targets API 34: since 31 August 2026 an update has to
+    // target Android 16 (API 36), and AGP 8.10 is the oldest plugin that can compile against it.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.ujournal"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         // The version lives here, not in the run that built it. It used to be the workflow's run
         // number, which meant a build from a later run carried a higher versionCode than the
         // release cut before it - and Android refuses such a release as a downgrade. The code is
-        // computed from the name and only ever goes up: 1.2.4 -> 10204.
-        versionName = "1.2.4"
+        // computed from the name and only ever goes up: 1.2.5 -> 10205.
+        versionName = "1.2.5"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }

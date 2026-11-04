@@ -5,6 +5,19 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.6.2 - the other apps open their Play listings
+
+### Changed
+- **"Check out the other apps" goes to the Play Store.** Each row used to open that app's GitHub
+  releases page, which is where the APKs are kept for sideloading, not where anyone installs an
+  app. Every row now opens the app's own Play listing, addressed by the package name it is
+  published under - the one address that survives a renamed repository. The addresses still live
+  in the app rather than the page, so an over-the-air screen can list the apps without choosing
+  where a tap goes.
+- **A listing that is not up yet says so, in Play's own words.** FamTM is published
+  (`com.familytree.app`); the journal, My Hub, SideCut and Compass EDC answer with Play's "not
+  found" page until they are published, which is a truer answer than a download link.
+
 ## 1.6.1 - your journal, and the tabs that are always there
 
 ### Fixed

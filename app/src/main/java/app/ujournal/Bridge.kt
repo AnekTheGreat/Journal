@@ -210,14 +210,21 @@ class Bridge(private val ui: MainActivity) {
  * The other apps this collection has, each behind a name the page is allowed to say. The addresses
  * live here and not in the page for the same reason the tip links do: an over-the-air screen can be
  * replaced, so the set of places it can send someone is fixed by the app, not by the page.
+ *
+ * These are Play listings, not the repositories. The releases page is where the APKs are kept for
+ * sideloading, which is not what "get this app" means to someone reading it: a Play listing is the
+ * place an app is installed from, updated from, and uninstalled from, and it is the one address that
+ * survives a rename of the repository. An id here is the package name the app was published under,
+ * so a listing that is not up yet answers with Play's own "not found" page rather than sending
+ * anyone to a download they would have to keep updated by hand.
  */
 internal object Siblings {
     private val APPS = listOf(
-        "journal" to "https://github.com/AnekTheGreat/Journal/releases/latest",
-        "famtm" to "https://github.com/AnekTheGreat/FamTM/releases/latest",
-        "myhub" to "https://github.com/AnekTheGreat/My-Hub/releases/latest",
-        "sidecut" to "https://anekthegreat.github.io/SideCut/",
-        "compass" to "https://github.com/AnekTheGreat/Compass-EDC"
+        "journal" to "https://play.google.com/store/apps/details?id=app.ujournal",
+        "famtm" to "https://play.google.com/store/apps/details?id=com.familytree.app",
+        "myhub" to "https://play.google.com/store/apps/details?id=com.myhub.app",
+        "sidecut" to "https://play.google.com/store/apps/details?id=com.SideCut.myapp",
+        "compass" to "https://play.google.com/store/apps/details?id=com.CompassEDC.myapp"
     )
 
     fun url(id: String): String? = APPS.firstOrNull { it.first == id }?.second

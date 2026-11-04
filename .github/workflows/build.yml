@@ -78,6 +78,24 @@ jobs:
           done
           echo "signed and packaged: $APK ($(du -h "$APK" | cut -f1)), $AAB ($(du -h "$AAB" | cut -f1))"
 
+      # The page is the journal's screen, so it has to be inside the APK that was just built, and
+      # it has to name the same version as the build: the shell refuses a page that disagrees, and
+      # a release that shipped one would be an update nothing would take.
+      - name: Check the screen page is in the APK
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          unzip -l "$APK" | grep -q 'assets/index.html' \
+            || { echo "::error::assets/index.html is missing from the APK"; exit 1; }
+          V="$(grep -oE 'JOURNAL_PAGE = "[^"]+"' app/src/main/assets/index.html | head -1 | cut -d'"' -f2)"
+          N="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+          if [ "$V" != "$N" ]; then
+            echo "::error::the page says $V and the build says $N"
+            exit 1
+          fi
+          grep -q 'ujournal-page' app/src/main/assets/index.html \
+            || { echo "::error::the page lost its ujournal-page marker"; exit 1; }
+          echo "page $V ships inside UJournal-$N.apk"
+
       # Flat, versioned names in one folder, the way a release is laid out - the same shape
       # SideCut's releases have, where the APK and the AAB sit side by side. The version comes
       # from build.gradle.kts: an artifact named after the run number could not be told apart

@@ -5,6 +5,34 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.4.0 — the journal travels in one file
+
+### Added
+- **Every entry and attachment in one file, for a new phone.** A new ⋯ button in the top bar opens
+  **Move to a new device**: *Save a backup* writes one `.zip` holding every day's `entry.json` and
+  everything attached to it, and *Restore a backup* reads one back on the other phone. The file is
+  written through the phone's own Save dialog, so it goes wherever you point it — Downloads, a
+  memory card, a cloud folder that syncs — and nothing is uploaded anywhere.
+- **The file says what it is.** `ujournal-backup.json` sits at the top of the archive with the app's
+  name, the version that wrote it, the date, and how many days and files it holds, so a zip that is
+  not a UJournal backup is refused instead of half-restored.
+
+### Changed
+- **Restore replaces, and says so.** The sheet warns that restoring replaces every entry in this
+  journal, and the button arms on the first tap (*Replace this journal?*) before it opens the
+  picker. When the restore finishes the page reloads from disk, so the timeline shows what arrived
+  and the calendar fills in the days that came with it.
+- **A restore is all-or-nothing.** The archive is unpacked into a folder of its own and only swapped
+  in once every file is out and named for a real date; an archive that fails partway leaves the
+  journal exactly as it was. A name that would land outside the journal's folder — a path of its
+  own, or `..` — is refused, and the whole read is capped, so a wrong file cannot fill the phone.
+
+### Fixed
+- **Closing the journal no longer relies on the page being quick.** `onPause` asks the page to flush
+  what was typed, and the page now answers: `window.journalFlush` is the same save the half-second
+  timer and the blur already call, so a note typed in the last moment before the screen goes away
+  is on disk either way.
+
 ## 1.3.0 — the journal is a page now, so it updates without an installer
 
 ### Changed

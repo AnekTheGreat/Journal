@@ -1,1 +1,133 @@
-@@JOURNAL_POLICY@@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UJournal — Privacy Policy</title>
+<meta name="description" content="Privacy policy for the UJournal Android app: your entries stay on your phone, and the microphone is only used while you record.">
+<style>
+  :root {
+    --ink: #1a1712;
+    --muted: #6a6259;
+    --paper: #f7f3ea;
+    --rule: #e2d9c9;
+    --accent: #7a4b1f;
+    --card: #fffdf8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #ece7dd;
+      --muted: #a89f92;
+      --paper: #16130f;
+      --rule: #322b23;
+      --accent: #e0b483;
+      --card: #1e1a15;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 5rem;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 44rem; margin: 0 auto; }
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 1.25rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; letter-spacing: -.01em; font-family: Georgia, "Times New Roman", serif; }
+  h2 { font-size: 1.15rem; margin: 2.5rem 0 .6rem; letter-spacing: -.005em; }
+  h3 { font-size: 1rem; margin: 1.5rem 0 .3rem; }
+  p, li { margin: 0 0 .85rem; }
+  ul { padding-left: 1.25rem; }
+  li { margin-bottom: .5rem; }
+  .sub { color: var(--muted); font-size: .95rem; margin: 0; }
+  .lede {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    margin: 0 0 2rem;
+  }
+  .lede p:last-child { margin-bottom: 0; }
+  a { color: var(--accent); }
+  code { font-size: .9em; background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: .05em .3em; }
+  footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>UJournal — Privacy Policy</h1>
+  <p class="sub">Applies to UJournal for Android, version 1.2.5 and later, including the build distributed on Google Play. Effective 4 November 2026.</p>
+</header>
+
+<div class="lede">
+  <p><strong>The short version: what you write in UJournal stays on your phone. There is no account, no cloud sync, no analytics and no server of ours — we cannot read your journal, and neither can anyone else through us.</strong></p>
+  <p>The app records audio only while you are holding the record dialog open, and that recording is saved as an attachment in your own entry. The one network request the app makes on its own is asking GitHub whether a newer version exists, and it contains nothing about you.</p>
+</div>
+
+<h2>Who we are</h2>
+<p>UJournal is an independent Android app. In this policy, “we” and “us” mean the app's developer. “The app” means UJournal. You can reach us at the address in <a href="#contact">Contact</a>.</p>
+
+<h2>What you write, and where it goes</h2>
+<p>Your entries are ordinary files in the app's own private storage on your phone: one small file per day, with any attachments — photos, videos, audio, documents — copied in beside it. That storage belongs to the app and is not readable by other apps on your phone.</p>
+<p>Nothing is uploaded. UJournal has no account, no sign-in, no sync and no cloud storage, and it does not back your entries up to us. We have no way to see an entry, because no copy of it ever reaches us.</p>
+
+<h3>Attachments you add</h3>
+<p>When you pick a photo, video, audio file or document, the app copies that file into its own storage so the entry keeps working even if the original is moved or deleted. When you open an attachment, the app hands it to the viewer or player you choose through Android's own sharing mechanism, which grants that app read access to that one file only.</p>
+
+<h3>The microphone</h3>
+<p>UJournal can record a voice note into an entry. The microphone is used only while you have the record dialog open and have tapped <em>Record</em>: recording starts on that tap and stops when you tap <em>Stop &amp; save</em>, cancel, or close the dialog. The recording is written as an audio file and saved as an attachment in that day's entry.</p>
+<p>The microphone permission is optional. If you decline it, everything else in the app still works — you just cannot record. No audio is ever transmitted, analysed by us, or used to identify you, and the app never listens in the background: Android shows an indicator whenever the microphone is in use, and the app has no service that could use it while closed.</p>
+
+<h2>What leaves your phone</h2>
+
+<h3>Checking for a new version</h3>
+<p>When the app looks for a newer release, it requests the latest release information for this app from GitHub (<code>api.github.com</code> and <code>github.com</code>). Like any web request, that one carries your IP address and standard request headers, which GitHub receives and handles under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. The request carries no identifier for you, your phone or your installation, and it does not include anything you have written.</p>
+<p><strong>If you installed UJournal from Google Play, the app does not contact GitHub at all.</strong> It asks Google Play whether an update exists, and Play delivers it. You can also avoid the check on a sideloaded copy by not tapping <em>Check for updates</em>.</p>
+<p>Tapping an offered update opens this app's GitHub release page in your browser. From that point you are on GitHub, in your browser, under GitHub's terms — not inside UJournal.</p>
+
+<h3>The tip jar</h3>
+<p>UJournal offers a tip jar with five fixed amounts. Choosing one opens a Stripe payment page in your browser. The payment is made on Stripe's site, under <a href="https://stripe.com/privacy">Stripe's privacy policy</a>; the app never sees your card number or any payment detail, and Stripe sends nothing back to the app. Tipping unlocks nothing — the app is the same either way, and it never asks you to pay.</p>
+
+<h2>What we never do</h2>
+<ul>
+  <li>We do not collect, transmit or store your entries, recordings or personal data on any server. There is no server.</li>
+  <li>We do not use analytics, crash reporting, advertising or attribution software.</li>
+  <li>We do not sell, rent or share data with anyone, because we do not have it.</li>
+  <li>We do not read your other apps, your contacts, your location or your accounts, and the app has no permission to do so.</li>
+  <li>We do not require a name, email address, phone number or account of any kind.</li>
+  <li>We do not use your entries to train anything, and no automated system reads them.</li>
+</ul>
+
+<h2>Keeping and deleting your data</h2>
+<p>Your journal lives only on your phone, in the app's private storage.</p>
+<ul>
+  <li>To delete a day, delete its entry in the app; the entry and its attachments are removed from storage.</li>
+  <li>To delete a single attachment, remove it from the entry, which deletes the copied file.</li>
+  <li>To remove everything at once, uninstall the app. Android deletes its private storage, entries and attachments included.</li>
+  <li>To stop the app using the microphone, revoke the permission in Android Settings.</li>
+</ul>
+<p>Because we never receive your data, there is nothing for us to delete on your behalf and no request to send us. If you want to keep a copy of your writing before uninstalling, open the attachments you want to save with another app first — the entries themselves are not exported anywhere automatically.</p>
+
+<h2>Backups</h2>
+<p>UJournal allows Android's own app-backup feature. If backup is enabled on your device, Android may include the app's private storage — your entries and their attachments — in your device backup or your Google account's backup. That copy is controlled by your Google settings and by Google's privacy policy, not by us, and it is the only way an entry can leave your phone without you sending it somewhere. You can turn backup off in Android Settings, and uninstalling the app removes its data from the device.</p>
+
+<h2>Children</h2>
+<p>UJournal is a general-purpose journal and is not directed at children. It collects no personal data from anyone, of any age. A parent or guardian should be aware that the app can record audio when the microphone permission is granted.</p>
+
+<h2>Changes to this policy</h2>
+<p>If a future version of the app changes what it does with data, this page will be updated before that version is released, and the effective date above will change. The current version of this policy always lives at this address.</p>
+
+<h2 id="contact">Contact</h2>
+<p>Questions about this policy or about what the app does can go to <a href="mailto:sidecutsupport@gmail.com">sidecutsupport@gmail.com</a>, or to the issue tracker at <a href="https://github.com/AnekTheGreat/Journal/issues">github.com/AnekTheGreat/Journal</a>.</p>
+
+<footer>
+  <p>UJournal — package <code>app.ujournal</code>. This policy covers the Google Play build and the sideloaded build alike; they handle data identically apart from where they look for updates, as described above.</p>
+</footer>
+
+</main>
+</body>
+</html>

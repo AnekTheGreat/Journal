@@ -5,6 +5,35 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.6.0 — plans: a time, a few days away, or every year
+
+### Added
+- **Plans live beside the entries.** A journal keeps what is coming as well as what happened: a
+  dinner with a time on it, a trip that runs from one day into the next, and a birthday that comes
+  round every year. A **Plans** tab sits beside Journal and Calendar, and the top of the timeline
+  shows what is on today as soon as the book opens.
+- **A plan is a day with things in it, not a slot.** *New plan* asks for a title and then **Event**
+  or **Birthday**. An event takes a day, optional **From** and **To** times, a **Last day** when it
+  runs over several days, and a note. A birthday takes the day it falls on and repeats every year:
+  it is drawn with a cake and ordered by when it next comes round.
+- **The day sheet plans too.** Open any day and the plans for it sit under the date, with
+  **＋ Plan something for this day** right there, so a plan can be added without leaving the entry
+  being written. Tapping a plan opens it to change or delete, and Delete asks once before it goes.
+- **The calendar marks planned days.** A day with an entry is still filled in; a day with a plan now
+  carries a dot — in the tan of the app on an empty day, in white inside a filled one.
+- **Plans travel with the book.** They are kept in the journal's own `journal.json`, beside the name,
+  so the backup and **Move to a new device** already carry every plan and a restore puts the calendar
+  back on the new phone with nothing else to do. A plan whose date is unreadable is skipped instead
+  of drawn as a broken row, so a hand-edited file cannot stop the book from opening.
+- **Check out the other apps.** The bottom of the shelf lists FamTM, My Hub, SideCut and Compass EDC,
+  one line each, and a tap opens that app's page. The addresses live in the app rather than in the
+  page, for the same reason the tip links do: a screen that arrives over the air can list the other
+  apps, but should not be able to choose where a tap goes.
+
+### Changed
+- **The ✚ button belongs to writing, not planning.** It is hidden on the Plans tab, which has its
+  own **New plan** card, and stays hidden inside a day as before.
+
 ## 1.5.0 — it opens on your journals, and the timeline shows them again
 
 ### Added

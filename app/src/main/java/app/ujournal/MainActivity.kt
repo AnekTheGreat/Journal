@@ -68,6 +68,9 @@ class MainActivity : Activity() {
     private var fellBack = false
     private var watchdog: Runnable? = null
 
+    /** When the last check went out, so coming back does not ask again straight away. */
+    private var lastCheck = 0L
+
     /** The day a picker was opened for, and the file a camera was told to write. */
     private var pickDate: String? = null
     private var captureUri: Uri? = null
@@ -124,10 +127,15 @@ class MainActivity : Activity() {
         checkUpdates(silent = true)
     }
 
-    /** Coming back is when an attachment may have landed, so the page redraws the list. */
+    /**
+     * Coming back is when an attachment may have landed, so the page redraws the list - and it is
+     * also the cheapest moment to ask whether the screen has moved on. A journal left open on a
+     * desk used to learn about a new screen only by being closed and opened again.
+     */
     override fun onResume() {
         super.onResume()
         eval("window.journalResume&&window.journalResume()")
+        if (System.currentTimeMillis() - lastCheck > CHECK_EVERY) checkUpdates(silent = true)
     }
 
     /** Whatever was typed belongs on disk even if the page never blurs the field. */
@@ -534,19 +542,24 @@ class MainActivity : Activity() {
     // ---- updates ----
 
     /**
-     * Ask GitHub what is newest and offer it. A page update is the ordinary kind: the screen is a
+     * Ask GitHub what is newest and take it. A page update is the ordinary kind: the screen is a
      * web page, so it is fetched and swapped in place with nothing installed. The APK is offered
      * only when the shell itself changed, and never to a copy Play delivered.
      */
     fun checkUpdates(silent: Boolean) {
+        lastCheck = System.currentTimeMillis()
         if (!silent) eval("JR&&JR.toast('Checking for updates\\u2026')")
         Updater.checkAsync { update -> runOnUiThread { offered(update, silent) } }
     }
 
     private fun offered(update: Update?, silent: Boolean) {
         val page = PageStore.running(this)
-        if (update != null && update.page != null && Updater.newer(update.version, page)) {
-            eval("JR&&JR.update(" + offer(update, "page") + ")")
+        val pageUrl = update?.page
+        if (update != null && pageUrl != null && Updater.newer(update.version, page)) {
+            // A screen is a file, not an install: there is nothing to consent to and nothing the
+            // phone has to ask, so it is taken as soon as it is found. Waiting to be tapped is most
+            // of why an update used to feel slow - the app had found it and then stood still.
+            takePage(pageUrl, update.version)
             return
         }
         if (update != null && !Updater.fromPlay(this) &&
@@ -574,19 +587,44 @@ class MainActivity : Activity() {
             .toString()
     }
 
+    /** The page asked for it from the update sheet; the same swap a check that found it performs. */
+    fun applyPage(url: String, version: String) = write(url, version, quiet = false)
+
+    /**
+     * A page update nobody asked for. It goes in at once, except while a day is open: the screen is
+     * about to be replaced, and a half-written entry is worth more than the few seconds it saves.
+     * The next return to the journal takes it instead, because the wait is cleared.
+     */
+    private fun takePage(url: String, version: String) {
+        if (!::web.isInitialized) {
+            write(url, version, quiet = true)
+            return
+        }
+        web.evaluateJavascript("(window.journalEditing&&journalEditing())?'y':'n'") { answer ->
+            if (answer != null && answer.contains("y")) {
+                lastCheck = 0L
+            } else {
+                write(url, version, quiet = true)
+            }
+        }
+    }
+
     /**
      * Fetch the page a release published and put it in place. Nothing is installed and no package is
      * touched: this writes one file into the app's own storage and loads it.
      */
-    fun applyPage(url: String, version: String) {
+    private fun write(url: String, version: String, quiet: Boolean) {
         Thread {
             val bytes = Updater.download(url)
             val saved = bytes != null && PageStore.save(this, bytes, version)
             runOnUiThread {
                 if (saved) {
                     loadPage()
-                    main.postDelayed({ eval("JR&&JR.toast('Updated to $version')") }, 1500)
-                } else {
+                    main.postDelayed(
+                        { eval("JR&&JR.toast('Updated to $version')") },
+                        if (quiet) 700 else 1500
+                    )
+                } else if (!quiet) {
                     eval("JR&&JR.toast('That update did not arrive in one piece')")
                 }
             }
@@ -636,6 +674,8 @@ class MainActivity : Activity() {
     private companion object {
         /** How long a page gets to draw before the bundled copy is put back. */
         const val WATCHDOG = 9000L
+        /** Coming back to the journal asks again only after this long, not on every glance. */
+        const val CHECK_EVERY = 10 * 60 * 1000L
         const val REQ_PICK = 41
         const val REQ_MIC = 42
         /** Save a backup, read one back. */

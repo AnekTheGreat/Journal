@@ -52,12 +52,21 @@ object Updater {
     private fun apiUrl() = "https://api.github.com/repos/$repo/releases/latest"
     private fun feedUrl() = "https://github.com/$repo/releases.atom"
 
-    /** GitHub answers 403 to a request with no User-Agent, so one is always sent. */
+    /**
+     * GitHub answers 403 to a request with no User-Agent, so one is always sent.
+     *
+     * The timeouts are short on purpose. Every URL here redirects - `releases/latest/download` to a
+     * signed asset host, an asset to its own CDN - and a phone on a weak signal would sit on a
+     * stalled connection for the old 12s/25s while the journal looked like it was doing nothing.
+     * Four and eight seconds are still generous for a 1 KB manifest and a 42 KB page on a working
+     * connection, and if they do run out the check simply says nothing and tries again later.
+     */
     private fun open(url: String): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
             setRequestProperty("User-Agent", "UJournal/" + BuildConfig.VERSION_NAME)
-            connectTimeout = 12000
-            readTimeout = 25000
+            setRequestProperty("Accept-Encoding", "identity")
+            connectTimeout = 4000
+            readTimeout = 8000
             instanceFollowRedirects = true
         }
 

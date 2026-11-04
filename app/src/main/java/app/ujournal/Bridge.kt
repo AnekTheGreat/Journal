@@ -9,9 +9,10 @@ import java.time.LocalDate
  * Everything the page is allowed to ask the phone for, and nothing more.
  *
  * The screen is `assets/index.html`, so the parts that cannot live in a page live here: the entries
- * on disk, the pickers and the recorder, the tip links, and the update. Each method is a small,
- * named promise - the page cannot reach a file, a database or an intent that is not spelled out
- * below, which is what makes an over-the-air screen safe to accept.
+ * on disk, the pickers and the recorder, the tip links, the update, and the one file a journal can
+ * be carried to a new phone in. Each method is a small, named promise - the page cannot reach a
+ * file, a database or an intent that is not spelled out below, which is what makes an over-the-air
+ * screen safe to accept.
  *
  * These are called on the WebView's JavaScript thread, so anything that touches the UI is handed
  * to the activity's main thread first.
@@ -84,6 +85,14 @@ class Bridge(private val ui: MainActivity) {
     fun tip(dollars: Int) = main {
         Support.LINKS.firstOrNull { it.first == dollars }?.let { Support.open(ui, it.second) }
     }
+
+    /** One file with every entry and attachment in it, written where the phone's Save dialog points. */
+    @JavascriptInterface
+    fun backup() = main { ui.exportAll() }
+
+    /** Read one of those files back and make it this journal. The page asks once before calling it. */
+    @JavascriptInterface
+    fun restore() = main { ui.importAll() }
 
     @JavascriptInterface
     fun checkUpdates() = main { ui.checkUpdates(silent = false) }

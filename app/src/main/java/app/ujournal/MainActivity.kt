@@ -22,8 +22,14 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.time.LocalDate
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 // The paper tone the page paints, shown while it loads and behind the system bars.
 private val BG = Color.parseColor("#F4EBDD")
@@ -35,7 +41,8 @@ private val BG_BAR = Color.parseColor("#FBF6EC")
  * The screen itself is `assets/index.html` - the same shape SideCut, MeasureT, My Hub and FamTM have
  * - so a wording change, a new sheet or a different calendar ships by replacing that file over the
  * air. The APK only changes when this file does: it holds the bridge that reads and writes the
- * entries, opens the pickers, runs the recorder and performs the update.
+ * entries, opens the pickers, runs the recorder, performs the update, and writes the one file a
+ * journal can be carried to a new phone in.
  *
  * Three things guard the phone, because the one failure that matters is a journal that opens to a
  * blank screen and cannot reach the entries behind it:
@@ -241,6 +248,14 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        // Save and Open are the two halves of moving the journal to another phone.
+        if (requestCode == REQ_SAVE || requestCode == REQ_OPEN) {
+            val uri = data?.data
+            if (resultCode == RESULT_OK && uri != null) {
+                if (requestCode == REQ_SAVE) writeBackup(uri) else readBackup(uri)
+            }
+            return
+        }
         if (requestCode != REQ_PICK) return
         val date = pickDate ?: return
         val uris = ArrayList<Uri>()
@@ -332,6 +347,168 @@ class MainActivity : Activity() {
         }
     }
 
+    // ---- carrying the journal to a new phone ----
+
+    /**
+     * Write every entry and attachment into one file, wherever the phone's own Save dialog points.
+     * The journal never chooses the place and never uploads anything: the owner does, or it does not
+     * happen. The manifest goes in first and says what the archive is.
+     */
+    fun exportAll() {
+        val i = Intent(Intent.ACTION_CREATE_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("application/zip")
+            .putExtra(Intent.EXTRA_TITLE, "UJournal-backup-" + LocalDate.now() + ".zip")
+        try {
+            startActivityForResult(i, REQ_SAVE)
+        } catch (e: Exception) {
+            eval("JR&&JR.toast('No app on this phone can save a file')")
+        }
+    }
+
+    /** Read one of those files back over this journal. The page has already asked. */
+    fun importAll() {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*")
+            .putExtra(
+                Intent.EXTRA_MIME_TYPES,
+                arrayOf("application/zip", "application/octet-stream")
+            )
+        try {
+            startActivityForResult(i, REQ_OPEN)
+        } catch (e: Exception) {
+            eval("JR&&JR.toast('Nothing on this phone can open that file')")
+        }
+    }
+
+    private fun writeBackup(uri: Uri) {
+        Thread {
+            val root = File(filesDir, JOURNAL)
+            val days = (root.listFiles() ?: emptyArray())
+                .filter { it.isDirectory && DATE.matches(it.name) }
+                .sortedBy { it.name }
+            var files = 0
+            val ok = runCatching {
+                contentResolver.openOutputStream(uri)?.use { raw ->
+                    ZipOutputStream(BufferedOutputStream(raw)).use { zip ->
+                        val manifest = JSONObject()
+                            .put("app", "ujournal")
+                            .put("version", BuildConfig.VERSION_NAME)
+                            .put("made", LocalDate.now().toString())
+                            .put("days", days.size)
+                            .put("files", days.sumOf { d -> (d.listFiles() ?: emptyArray()).size })
+                        zip.putNextEntry(ZipEntry(MANIFEST))
+                        zip.write(manifest.toString().toByteArray())
+                        zip.closeEntry()
+                        days.forEach { d ->
+                            (d.listFiles() ?: emptyArray()).forEach { f ->
+                                if (!f.isFile) return@forEach
+                                zip.putNextEntry(ZipEntry(d.name + "/" + f.name))
+                                f.inputStream().use { it.copyTo(zip) }
+                                zip.closeEntry()
+                                files++
+                            }
+                        }
+                    }
+                } != null
+            }.getOrDefault(false)
+            val shown = "Backed up " + files + " file" + (if (files == 1) "" else "s") +
+                " from " + days.size + " day" + (if (days.size == 1) "" else "s")
+            runOnUiThread {
+                eval(
+                    "JR&&JR.toast(" +
+                        JSONObject.quote(if (ok) shown else "That backup did not finish") + ")"
+                )
+            }
+        }.start()
+    }
+
+    /**
+     * Unpack a backup into a folder of its own and swap it in only when the whole archive came out.
+     * Every name has to be `YYYY-MM-DD/file`, so nothing can be written outside the journal's
+     * folder, and the read is capped: an archive far larger than a journal is refused rather than
+     * filled. A file that fails any of it leaves the journal exactly as it was.
+     */
+    private fun readBackup(uri: Uri) {
+        Thread {
+            val root = File(filesDir, JOURNAL)
+            val incoming = File(filesDir, JOURNAL + "-incoming")
+            val old = File(filesDir, JOURNAL + "-old")
+            var files = 0
+            var problem: String? = null
+            runCatching {
+                incoming.deleteRecursively()
+                incoming.mkdirs()
+                val stream = contentResolver.openInputStream(uri)
+                if (stream == null) {
+                    problem = "Nothing came back from that file"
+                } else {
+                    stream.use { raw ->
+                        ZipInputStream(BufferedInputStream(raw)).use { zip ->
+                            var seen = false
+                            var total = 0L
+                            while (true) {
+                                val e = zip.nextEntry ?: break
+                                val parts = e.name.split("/")
+                                if (e.name == MANIFEST) {
+                                    val text = String(readEntry(zip), Charsets.UTF_8)
+                                    seen = JSONObject(text).optString("app") == "ujournal"
+                                } else if (parts.size != 2 || parts[0] == ".." || parts[1] == ".." ||
+                                    parts[1].isEmpty() || !DATE.matches(parts[0])
+                                ) {
+                                    problem = "That file is not a UJournal backup"
+                                } else {
+                                    val d = File(incoming, parts[0]).apply { mkdirs() }
+                                    val f = File(d, parts[1])
+                                    f.outputStream().use { out -> zip.copyTo(out) }
+                                    total += f.length()
+                                    files++
+                                    if (total > MAX_RESTORE) {
+                                        problem = "That backup is too large for this phone"
+                                    }
+                                }
+                                zip.closeEntry()
+                            }
+                            if (!seen && problem == null) {
+                                problem = "That file is not a UJournal backup"
+                            }
+                        }
+                    }
+                }
+            }.onFailure { problem = "That file could not be read" }
+
+            if (problem == null) {
+                old.deleteRecursively()
+                val kept = !root.exists() || root.renameTo(old)
+                if (!kept || !incoming.renameTo(root)) {
+                    old.renameTo(root)
+                    problem = "That backup could not be put in place"
+                }
+            }
+            if (problem != null) incoming.deleteRecursively()
+            val days = (root.listFiles() ?: emptyArray()).count { it.isDirectory }
+            val message = problem ?: ("Restored " + files + " file" + (if (files == 1) "" else "s") +
+                " into " + days + " day" + (if (days == 1) "" else "s"))
+            runOnUiThread {
+                if (problem == null) eval("window.journalResume&&window.journalResume()")
+                eval("JR&&JR.toast(" + JSONObject.quote(message) + ")")
+            }
+        }.start()
+    }
+
+    /** One entry's bytes, bounded: the manifest is a few hundred bytes, not a film. */
+    private fun readEntry(zip: ZipInputStream): ByteArray {
+        val out = ByteArrayOutputStream()
+        val buf = ByteArray(8 * 1024)
+        while (true) {
+            val n = zip.read(buf)
+            if (n < 0 || out.size() > 64 * 1024) break
+            out.write(buf, 0, n)
+        }
+        return out.toByteArray()
+    }
+
     // ---- updates ----
 
     /**
@@ -340,7 +517,7 @@ class MainActivity : Activity() {
      * only when the shell itself changed, and never to a copy Play delivered.
      */
     fun checkUpdates(silent: Boolean) {
-        if (!silent) eval("JR&&JR.toast('Checking for updates\u2026')")
+        if (!silent) eval("JR&&JR.toast('Checking for updates\\u2026')")
         Updater.checkAsync { update -> runOnUiThread { offered(update, silent) } }
     }
 
@@ -439,5 +616,14 @@ class MainActivity : Activity() {
         const val WATCHDOG = 9000L
         const val REQ_PICK = 41
         const val REQ_MIC = 42
+        /** Save a backup, read one back. */
+        const val REQ_SAVE = 43
+        const val REQ_OPEN = 44
+        /** Where every entry lives, and the marker a backup carries at its root. */
+        const val JOURNAL = "journal"
+        const val MANIFEST = "ujournal-backup.json"
+        /** A journal large enough to need more than this is not one this app wrote. */
+        const val MAX_RESTORE = 512L * 1024 * 1024
+        val DATE = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")
     }
 }

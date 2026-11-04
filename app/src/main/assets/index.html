@@ -53,13 +53,33 @@ nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;ma
 .support .s1{font-family:Georgia,serif;font-size:16px}
 .support .s2{color:var(--muted);font-size:12px;margin-top:3px}
 .support .h{color:var(--tan);font-size:20px;margin-left:auto}
+.plans{margin:2px 0 10px}
+.plan{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;padding:12px 14px;margin-bottom:8px}
+.plan.today{border:1px solid var(--tan)}
+.plan .pdn{width:42px;flex:0 0 42px;text-align:center}
+.plan .pdn b{display:block;font-family:Georgia,serif;font-size:21px;font-weight:400}
+.plan .pdn i{font-style:normal;font-size:9.5px;color:var(--muted);letter-spacing:1px}
+.plan .pt{flex:1;min-width:0}
+.plan .pt b{display:block;font-family:Georgia,serif;font-size:16px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plan .pt i{display:block;font-style:normal;color:var(--muted);font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plan .cake{font-size:17px}
+.fld{width:100%;border:1px solid var(--sand);border-radius:12px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:15px;padding:10px 12px;margin:5px 0 12px}
+.fld.ta{min-height:62px;resize:none}
+.fl{display:block;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.chips{display:flex;gap:8px;margin:6px 0}
+.chip{border:1px solid var(--sand);background:none;border-radius:14px;padding:8px 15px;font-size:13.5px;color:var(--ink)}
+.chip.on{background:var(--tan);border-color:var(--tan);color:#fff}
+.two{display:flex;gap:10px}
+.two>div{flex:1;min-width:0}
 .cal-head{display:flex;align-items:center;gap:2px;padding:10px 0}
 .cal-head button{background:none;border:0;color:var(--ink);font-size:20px;padding:6px 10px}
 .cal-title{flex:1;text-align:center;font-family:Georgia,serif;font-size:20px}
 .dow,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .dow span{text-align:center;color:var(--muted);font-size:11px;padding:4px 0}
-.grid button{aspect-ratio:1;border:0;background:none;border-radius:50%;color:var(--ink);font-size:15px}
+.grid button{aspect-ratio:1;border:0;background:none;border-radius:50%;color:var(--ink);font-size:15px;position:relative}
 .grid button.has{background:var(--tan);color:#fff}
+.grid button.pl::after{content:"";position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:2px;background:var(--tan)}
+.grid button.has.pl::after{background:#fff}
 .today{text-align:center;padding:14px}
 .today button{background:none;border:0;color:var(--muted)}
 #day{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column}
@@ -103,7 +123,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <body>
 <header id="bar"><button id="backhome" title="All journals">‹</button><div id="brand">UJournal</div><button id="more" title="Back up or move to a new device">⋯</button><button id="check" title="Check for updates">⟳</button></header>
 <main id="view"></main>
-<nav id="tabs" class="hide"><button id="t0" class="on">📖<span>Journal</span></button><button id="t1">📅<span>Calendar</span></button></nav>
+<nav id="tabs" class="hide"><button id="t0" class="on">📖<span>Journal</span></button><button id="t1">📅<span>Calendar</span></button><button id="t2">🎉<span>Plans</span></button></nav>
 <button id="fab" class="hide">＋</button>
 
 <section id="day" class="hide">
@@ -116,12 +136,12 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.5.0";
+const JOURNAL_PAGE = "1.6.0";
 (function () {
   "use strict";
   var G = window.Journal || null;
   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  var S = { tab: 0, home: true, journals: [], name: "", entries: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
+  var S = { tab: 0, home: true, journals: [], name: "", entries: [], plans: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
 
   function $(id) { return document.getElementById(id); }
   function parse(t, d) { try { return t ? JSON.parse(t) : d; } catch (e) { return d; } }
@@ -172,7 +192,7 @@ const JOURNAL_PAGE = "1.5.0";
     } else {
       h += '<div class="empty">No journals on this phone yet.<br>Start one above.</div>';
     }
-    $("view").innerHTML = h + supportCard();
+    $("view").innerHTML = h + othersCard() + supportCard();
   }
 
   function home() {
@@ -266,8 +286,13 @@ const JOURNAL_PAGE = "1.5.0";
 
   function drawList() {
     var v = $("view");
+    var todays = (S.plans || []).filter(function (p) { return onDay(p, today()); });
+    var top = todays.length
+      ? '<div class="month">Today</div>' + todays.map(function (p) { return planRow(p, "today"); }).join("")
+      : "";
     if (!S.entries.length) {
-      v.innerHTML = '<div class="empty">This journal is waiting.<br>Tap ＋ to write today.</div>' + supportCard();
+      v.innerHTML = top + '<div class="empty">This journal is waiting.<br>Tap ＋ to write today.</div>' +
+        othersCard() + supportCard();
       return;
     }
     var h = "", y = null, m = null;
@@ -277,7 +302,7 @@ const JOURNAL_PAGE = "1.5.0";
       if (d.getMonth() !== m) { m = d.getMonth(); h += '<div class="month">' + MONTHS[m] + '</div>'; }
       h += card(e);
     });
-    v.innerHTML = h + supportCard();
+    v.innerHTML = top + h + othersCard() + supportCard();
   }
 
   // ---- the calendar ----
@@ -286,8 +311,19 @@ const JOURNAL_PAGE = "1.5.0";
     var y = S.ym.getFullYear(), m = S.ym.getMonth();
     var off = new Date(y, m, 1).getDay();
     var len = new Date(y, m + 1, 0).getDate();
-    var have = {};
+    var have = {}, planned = {};
     S.entries.forEach(function (e) { have[e.date] = 1; });
+    // A plan marks the days it covers. A birthday marks its month and day in every year, which is
+    // kept apart from the full dates by having no year in the key at all.
+    (S.plans || []).forEach(function (p) {
+      if (p.kind === "birthday") { planned[String(p.start).slice(5)] = 1; return; }
+      var from = p.start, to = planEnd(p);
+      for (var i = 0; i < 400; i++) {
+        var k = addDays(from, i);
+        planned[k] = 1;
+        if (k >= to) break;
+      }
+    });
     var h = '<div class="cal-head"><button data-ym="-12">«</button><button data-ym="-1">‹</button>' +
       '<div class="cal-title">' + MONTHS[m] + ' ' + y + '</div>' +
       '<button data-ym="1">›</button><button data-ym="12">»</button></div>';
@@ -295,7 +331,8 @@ const JOURNAL_PAGE = "1.5.0";
     for (var i = 0; i < off; i++) h += '<span></span>';
     for (var n = 1; n <= len; n++) {
       var k = key(y, m, n);
-      h += '<button class="' + (have[k] ? "has" : "") + '" data-date="' + k + '">' + n + '</button>';
+      var pl = planned[k] || planned[k.slice(5)];
+      h += '<button class="' + (have[k] ? "has" : "") + (pl ? " pl" : "") + '" data-date="' + k + '">' + n + '</button>';
     }
     h += '</div><div class="today"><button data-today="1">Today</button></div>';
     $("view").innerHTML = h;
@@ -305,15 +342,230 @@ const JOURNAL_PAGE = "1.5.0";
     if (S.home) { drawHome(); return; }
     $("t0").className = S.tab === 0 ? "on" : "";
     $("t1").className = S.tab === 1 ? "on" : "";
-    $("fab").style.display = S.day ? "none" : "block";
-    if (S.tab === 0) drawList(); else drawCal();
+    $("t2").className = S.tab === 2 ? "on" : "";
+    $("fab").style.display = S.day || S.tab === 2 ? "none" : "block";
+    if (S.tab === 0) drawList(); else if (S.tab === 1) drawCal(); else drawPlans();
   }
 
   function refresh(cb) {
     if (S.home) { home(); if (cb) cb(); return; }
     S.entries = parse(call("entries"), []) || [];
+    S.plans = parse(call("plans"), []) || [];
     draw();
+    repaintDay();
     if (cb) cb();
+  }
+
+  // ---- plans ----
+
+  // A plan is a thing that happens: an hour on a Tuesday, a week away, or a birthday that comes
+  // round every year. The day it starts and the day it ends are dates; the times are optional, so a
+  // plan with no time in it is simply all day, and a birthday has no end at all.
+
+  function addDays(s, n) {
+    var d = asDate(s);
+    d.setDate(d.getDate() + n);
+    return key(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  function planEnd(p) { return p.end && p.end > p.start ? p.end : p.start; }
+
+  function hm(t) {
+    var parts = String(t || "").split(":"), h = parseInt(parts[0], 10), m = parts[1] || "00";
+    if (isNaN(h)) return "";
+    var am = h >= 12 ? "pm" : "am", hh = h % 12;
+    if (hh === 0) hh = 12;
+    return hh + (m === "00" ? "" : ":" + m) + am;
+  }
+
+  function onDay(p, d) {
+    if (p.kind === "birthday") return String(p.start).slice(5) === String(d).slice(5);
+    return d >= p.start && d <= planEnd(p);
+  }
+
+  function whenLine(p) {
+    if (p.kind === "birthday") return "Every year on " + day(p.start);
+    var multi = planEnd(p) !== p.start;
+    var head = multi ? day(p.start) + " – " + day(planEnd(p)) : day(p.start);
+    if (!p.startTime) return head + " · all day";
+    return head + " · " + hm(p.startTime) + (p.endTime && !multi ? " – " + hm(p.endTime) : "");
+  }
+
+  // When a birthday next comes round, so the list can run in the order the year will.
+  function nextBirthday(p) {
+    var now = new Date();
+    var m = parseInt(String(p.start).slice(5, 7), 10), d = parseInt(String(p.start).slice(8, 10), 10);
+    var at = new Date(now.getFullYear(), m - 1, d);
+    if (at < new Date(now.getFullYear(), now.getMonth(), now.getDate())) at = new Date(now.getFullYear() + 1, m - 1, d);
+    return at;
+  }
+
+  function daysAway(dateStr) {
+    return Math.round((asDate(dateStr) - asDate(today())) / 86400000);
+  }
+
+  function planRow(p, extra) {
+    var at = p.kind === "birthday" ? nextBirthday(p) : asDate(p.start);
+    return '<div class="plan' + (extra === "today" ? " today" : "") + '" data-plan="' + esc(p.id) + '">' +
+      '<div class="pdn"><b>' + at.getDate() + '</b><i>' + MONTHS[at.getMonth()].slice(0, 3).toUpperCase() + '</i></div>' +
+      '<div class="pt"><b>' + esc(p.title || "Untitled plan") + '</b><i>' + esc(whenLine(p)) + '</i></div>' +
+      (p.kind === "birthday" ? '<div class="cake">🎂</div>' : '') + '</div>';
+  }
+
+  function plansOn(date) {
+    return (S.plans || []).filter(function (p) { return onDay(p, date); });
+  }
+
+  // The plans that belong to one day, drawn inside the day editor: what is on that day, and a way to
+  // add to it without leaving the entry you are writing.
+  function dayPlansHtml(date) {
+    var list = plansOn(date), h = '<div class="plans">';
+    if (list.length) list.forEach(function (p) { h += planRow(p); });
+    else h += '<div style="color:var(--muted);font-size:13px;padding:2px 4px 6px">Nothing planned for this day.</div>';
+    h += '<button class="allj" data-plan-new="' + esc(date) + '">＋ Plan something for this day</button></div>';
+    return h;
+  }
+
+  function repaintDay() {
+    if (S.day && $("dp")) $("dp").innerHTML = dayPlansHtml(S.day);
+  }
+
+  function drawPlans() {
+    var all = S.plans || [];
+    var todays = all.filter(function (p) { return onDay(p, today()); });
+    var soon = all.filter(function (p) {
+      return p.kind !== "birthday" && !onDay(p, today()) && daysAway(planEnd(p)) >= 0 && daysAway(p.start) <= 45;
+    }).sort(function (a, b) { return (a.start + a.startTime).localeCompare(b.start + b.startTime); });
+    var bdays = all.filter(function (p) { return p.kind === "birthday"; })
+      .sort(function (a, b) { return nextBirthday(a) - nextBirthday(b); });
+    var past = all.filter(function (p) { return p.kind !== "birthday" && planEnd(p) < today(); })
+      .sort(function (a, b) { return b.start.localeCompare(a.start); }).slice(0, 12);
+
+    var h = '<div class="hello">Plans</div>';
+    h += '<button class="newj" data-plan-new="1"><span class="plus">＋</span><span>' +
+      '<b>New plan</b><i>An hour, a few days away, or a birthday</i></span></button>';
+    if (!all.length) {
+      h += '<div class="empty">Nothing planned yet.<br>A dinner, a trip, a birthday &mdash; it can all live here.</div>';
+    } else {
+      if (todays.length) {
+        h += '<div class="month">Today</div>';
+        todays.forEach(function (p) { h += planRow(p, "today"); });
+      }
+      if (soon.length) {
+        h += '<div class="month">Coming up</div>';
+        soon.forEach(function (p) { h += planRow(p); });
+      }
+      if (bdays.length) {
+        h += '<div class="month">Birthdays</div>';
+        bdays.forEach(function (p) { h += planRow(p); });
+      }
+      if (past.length) {
+        h += '<div class="month">Earlier</div>';
+        past.forEach(function (p) { h += planRow(p); });
+      }
+    }
+    $("view").innerHTML = h + othersCard() + supportCard();
+  }
+
+  // One sheet for both kinds: the kind picks which fields matter, and a birthday only ever has a day.
+  function showPlan(p, date) {
+    var isNew = !p;
+    var plan = p ? {
+      id: p.id, title: p.title, start: p.start, startTime: p.startTime,
+      end: p.end || p.start, endTime: p.endTime, kind: p.kind, note: p.note
+    } : {
+      id: "", title: "", start: date || today(), startTime: "",
+      end: date || today(), endTime: "", kind: "event", note: ""
+    };
+    var kind = plan.kind === "birthday" ? "birthday" : "event";
+
+    $("sheet-card").innerHTML =
+      '<h2>' + (isNew ? "New plan" : "Edit plan") + '</h2>' +
+      '<input id="pt" class="t nm" placeholder="What is it?" maxlength="80" value="' + esc(plan.title) + '">' +
+      '<div class="chips"><button id="pke" class="chip">Event</button><button id="pkb" class="chip">Birthday</button></div>' +
+      '<label class="fl">Day</label><input id="pd" class="fld" type="date" value="' + esc(plan.start) + '">' +
+      '<div id="ptimes">' +
+        '<div class="two"><div><label class="fl">From</label><input id="pst" class="fld" type="time" value="' + esc(plan.startTime) + '"></div>' +
+        '<div><label class="fl">To</label><input id="pet" class="fld" type="time" value="' + esc(plan.endTime) + '"></div></div>' +
+        '<label class="fl">Last day, if it runs over</label><input id="pe" class="fld" type="date" value="' + esc(plan.end > plan.start ? plan.end : "") + '">' +
+      '</div>' +
+      '<label class="fl">Notes</label><textarea id="pn" class="fld ta" placeholder="Optional">' + esc(plan.note) + '</textarea>' +
+      '<div class="row"><button id="pcancel">Cancel</button>' +
+      (isNew ? "" : '<button id="pdel">Delete</button>') +
+      '<button id="psave" class="go">Save</button></div>';
+    $("sheet").classList.remove("hide");
+
+    function paint() {
+      $("pke").className = "chip" + (kind === "event" ? " on" : "");
+      $("pkb").className = "chip" + (kind === "birthday" ? " on" : "");
+      $("ptimes").style.display = kind === "birthday" ? "none" : "block";
+    }
+    $("pke").onclick = function () { kind = "event"; paint(); };
+    $("pkb").onclick = function () { kind = "birthday"; paint(); };
+    paint();
+
+    $("pcancel").onclick = function () { $("sheet").classList.add("hide"); };
+    if (!isNew) $("pdel").onclick = function () {
+      if (!this.getAttribute("data-armed")) {
+        this.setAttribute("data-armed", "1");
+        this.textContent = "Delete this plan?";
+        return;
+      }
+      call("removePlan", plan.id);
+      $("sheet").classList.add("hide");
+      refresh();
+      say("Plan deleted");
+    };
+    $("psave").onclick = function () {
+      var title = ($("pt").value || "").trim();
+      if (!title) { say("Give the plan a name"); $("pt").focus(); return; }
+      var start = $("pd").value || today();
+      var out = { id: plan.id, title: title, kind: kind, start: start, startTime: "", end: start, endTime: "", note: ($("pn").value || "").trim() };
+      if (kind === "event") {
+        out.startTime = $("pst").value || "";
+        out.endTime = out.startTime ? ($("pet").value || "") : "";
+        var last = $("pe").value || "";
+        out.end = last && last > start ? last : start;
+      }
+      call("savePlan", JSON.stringify(out));
+      $("sheet").classList.add("hide");
+      refresh();
+      say(isNew ? "Plan saved" : "Plan changed");
+    };
+  }
+
+  // ---- the other apps ----
+
+  // Names and one-liners only: the addresses live in the shell, so an over-the-air page can list the
+  // other apps but cannot choose where a tap goes.
+  var OTHERS = [
+    ["famtm", "FamTM", "The family tree in your pocket"],
+    ["myhub", "My Hub", "One screen for the apps you use most"],
+    ["sidecut", "SideCut", "A music player with its own equaliser"],
+    ["compass", "Compass EDC", "Compass, elevation, GPS and a level"]
+  ];
+
+  function othersCard() {
+    return '<div class="support" data-apps="1"><div><div class="s1">Check out the other apps</div>' +
+      '<div class="s2">FamTM, My Hub, SideCut and Compass EDC.</div></div><div class="h">›</div></div>';
+  }
+
+  function showOthers() {
+    var h = '<h2>Other apps</h2><p>Four more, made the same way and free the same way.</p>';
+    OTHERS.forEach(function (a) {
+      h += '<button class="pick" data-app="' + a[0] + '">' + esc(a[1]) + '<i>' + esc(a[2]) + '</i></button>';
+    });
+    h += '<div class="row" style="padding-top:16px"><button id="oclose">Close</button></div>';
+    $("sheet-card").innerHTML = h;
+    $("sheet").classList.remove("hide");
+    $("oclose").onclick = function () { $("sheet").classList.add("hide"); };
+    $("sheet-card").querySelectorAll("[data-app]").forEach(function (b) {
+      b.onclick = function () {
+        var ok = call("openApp", b.getAttribute("data-app"));
+        if (ok === false || ok === "false") say("No browser to open that with");
+        else $("sheet").classList.add("hide");
+      };
+    });
   }
 
   // ---- the day ----
@@ -343,6 +595,7 @@ const JOURNAL_PAGE = "1.5.0";
     var d = asDate(date);
     $("day-body").innerHTML =
       '<div class="day-date">' + esc(d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })) + '</div>' +
+      '<div id="dp">' + dayPlansHtml(date) + '</div>' +
       '<input id="t" class="t" placeholder="Title" value="' + esc(e.title) + '">' +
       '<textarea id="b" class="b" placeholder="What&rsquo;s on your mind?">' + esc(e.body) + '</textarea>' +
       '<div class="atts" id="atts">' + attsHtml(e) + '</div>';
@@ -526,8 +779,18 @@ const JOURNAL_PAGE = "1.5.0";
 
   // ---- wiring ----
 
+  function openPlanFrom(el) {
+    if (!el) return false;
+    saveNow();
+    var id = el.getAttribute("data-plan");
+    var found = (S.plans || []).filter(function (p) { return p.id === id; })[0] || null;
+    showPlan(found);
+    return true;
+  }
+
   $("t0").onclick = function () { S.tab = 0; draw(); };
   $("t1").onclick = function () { S.tab = 1; draw(); };
+  $("t2").onclick = function () { S.tab = 2; draw(); };
   $("fab").onclick = function () { openDay(today()); };
   $("back").onclick = function () { closeDay(); };
   $("attach").onclick = openMenu;
@@ -537,8 +800,13 @@ const JOURNAL_PAGE = "1.5.0";
 
   $("view").addEventListener("click", function (ev) {
     if (ev.target.closest("[data-tip]")) { showTips(); return; }
+    if (ev.target.closest("[data-apps]")) { showOthers(); return; }
     if (ev.target.closest("[data-new]")) { showNewJournal(); return; }
     if (ev.target.closest("[data-allj]")) { showAllJournals(); return; }
+    var np = ev.target.closest("[data-plan-new]");
+    if (np) { var at = np.getAttribute("data-plan-new"); showPlan(null, at && at !== "1" ? at : today()); return; }
+    var pr = ev.target.closest("[data-plan]");
+    if (pr) { openPlanFrom(pr); return; }
     var j = ev.target.closest("[data-jid]");
     if (j) { openJournal(j.getAttribute("data-jid")); return; }
     var c = ev.target.closest("[data-date]");
@@ -548,6 +816,13 @@ const JOURNAL_PAGE = "1.5.0";
     if (ev.target.closest("[data-today]")) { S.ym = new Date(); drawCal(); }
   });
 
+  // The day sheet holds plans of its own, so its taps are read here as well.
+  $("day-body").addEventListener("click", function (ev) {
+    var np = ev.target.closest("[data-plan-new]");
+    if (np) { showPlan(null, np.getAttribute("data-plan-new") || S.day); return; }
+    openPlanFrom(ev.target.closest("[data-plan]"));
+  });
+
   // The shell asks this before it closes: true means the page handled the back itself.
   window.journalBack = function () {
     if (!$("menu").classList.contains("hide")) { $("menu").classList.add("hide"); return true; }
@@ -555,7 +830,6 @@ const JOURNAL_PAGE = "1.5.0";
     if (S.rec) { stopRec(false); return true; }
     if (S.day) { closeDay(); return true; }
     if (!S.home) { home(); return true; }
-    if (S.tab !== 0) { S.tab = 0; draw(); return true; }
     return false;
   };
 

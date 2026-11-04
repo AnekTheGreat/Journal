@@ -39,10 +39,10 @@ private val BG_BAR = Color.parseColor("#FBF6EC")
  * The shell: one WebView, one bridge, and the update that keeps the screen current.
  *
  * The screen itself is `assets/index.html` - the same shape SideCut, MeasureT, My Hub and FamTM have
- * - so a wording change, a new sheet or a different calendar ships by replacing that file over the
+ * - so a wording change, a new screen or a different calendar ships by replacing that file over the
  * air. The APK only changes when this file does: it holds the bridge that reads and writes the
- * entries, opens the pickers, runs the recorder, performs the update, and writes the one file a
- * journal can be carried to a new phone in.
+ * journals, opens the pickers, runs the recorder, performs the update, and writes the one file a
+ * shelf of journals can be carried to a new phone in.
  *
  * Three things guard the phone, because the one failure that matters is a journal that opens to a
  * blank screen and cannot reach the entries behind it:
@@ -78,6 +78,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Constructing the store is what moves a 1.3 journal into the shelf, once.
         store = Store(applicationContext)
         // A page stored by an older install is dropped: the APK on the phone is the newer thing.
         PageStore.dropStale(this)
@@ -248,7 +249,7 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        // Save and Open are the two halves of moving the journal to another phone.
+        // Save and Open are the two halves of moving the journals to another phone.
         if (requestCode == REQ_SAVE || requestCode == REQ_OPEN) {
             val uri = data?.data
             if (resultCode == RESULT_OK && uri != null) {
@@ -347,12 +348,12 @@ class MainActivity : Activity() {
         }
     }
 
-    // ---- carrying the journal to a new phone ----
+    // ---- carrying the shelf to a new phone ----
 
     /**
-     * Write every entry and attachment into one file, wherever the phone's own Save dialog points.
-     * The journal never chooses the place and never uploads anything: the owner does, or it does not
-     * happen. The manifest goes in first and says what the archive is.
+     * Write every journal, every entry and every attachment into one file, wherever the phone's own
+     * Save dialog points. The archive mirrors the shelf - `<id>/journal.json` and `<id>/<date>/file` -
+     * and begins with a manifest that says what it is and how much of it there is.
      */
     fun exportAll() {
         val i = Intent(Intent.ACTION_CREATE_DOCUMENT)
@@ -366,7 +367,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Read one of those files back over this journal. The page has already asked. */
+    /** Read one of those files back over this shelf. The page has already asked. */
     fun importAll() {
         val i = Intent(Intent.ACTION_OPEN_DOCUMENT)
             .addCategory(Intent.CATEGORY_OPENABLE)
@@ -384,37 +385,51 @@ class MainActivity : Activity() {
 
     private fun writeBackup(uri: Uri) {
         Thread {
-            val root = File(filesDir, JOURNAL)
-            val days = (root.listFiles() ?: emptyArray())
-                .filter { it.isDirectory && DATE.matches(it.name) }
+            val root = Store.rootOf(filesDir)
+            val books = (root.listFiles() ?: emptyArray())
+                .filter { it.isDirectory && Store.ID.matches(it.name) }
                 .sortedBy { it.name }
             var files = 0
             val ok = runCatching {
                 contentResolver.openOutputStream(uri)?.use { raw ->
                     ZipOutputStream(BufferedOutputStream(raw)).use { zip ->
+                        val days = books.sumOf { d ->
+                            (d.listFiles() ?: emptyArray()).count { it.isDirectory && Store.DATE.matches(it.name) }
+                        }
                         val manifest = JSONObject()
                             .put("app", "ujournal")
                             .put("version", BuildConfig.VERSION_NAME)
+                            .put("layout", 2)
                             .put("made", LocalDate.now().toString())
-                            .put("days", days.size)
-                            .put("files", days.sumOf { d -> (d.listFiles() ?: emptyArray()).size })
+                            .put("journals", books.size)
+                            .put("days", days)
                         zip.putNextEntry(ZipEntry(MANIFEST))
                         zip.write(manifest.toString().toByteArray())
                         zip.closeEntry()
-                        days.forEach { d ->
-                            (d.listFiles() ?: emptyArray()).forEach { f ->
-                                if (!f.isFile) return@forEach
-                                zip.putNextEntry(ZipEntry(d.name + "/" + f.name))
-                                f.inputStream().use { it.copyTo(zip) }
+                        books.forEach { b ->
+                            val meta = File(b, Store.META)
+                            if (meta.isFile) {
+                                zip.putNextEntry(ZipEntry(b.name + "/" + Store.META))
+                                meta.inputStream().use { it.copyTo(zip) }
                                 zip.closeEntry()
                                 files++
+                            }
+                            (b.listFiles() ?: emptyArray()).forEach { day ->
+                                if (!day.isDirectory || !Store.DATE.matches(day.name)) return@forEach
+                                (day.listFiles() ?: emptyArray()).forEach { f ->
+                                    if (!f.isFile) return@forEach
+                                    zip.putNextEntry(ZipEntry(b.name + "/" + day.name + "/" + f.name))
+                                    f.inputStream().use { it.copyTo(zip) }
+                                    zip.closeEntry()
+                                    files++
+                                }
                             }
                         }
                     }
                 } != null
             }.getOrDefault(false)
-            val shown = "Backed up " + files + " file" + (if (files == 1) "" else "s") +
-                " from " + days.size + " day" + (if (days.size == 1) "" else "s")
+            val shown = "Backed up " + books.size + " journal" + (if (books.size == 1) "" else "s") +
+                ", " + files + " file" + (if (files == 1) "" else "s")
             runOnUiThread {
                 eval(
                     "JR&&JR.toast(" +
@@ -425,16 +440,15 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Unpack a backup into a folder of its own and swap it in only when the whole archive came out.
-     * Every name has to be `YYYY-MM-DD/file`, so nothing can be written outside the journal's
-     * folder, and the read is capped: an archive far larger than a journal is refused rather than
-     * filled. A file that fails any of it leaves the journal exactly as it was.
+     * Unpack a backup into a folder of its own and swap the whole shelf in only when every name came
+     * out as `<id>/journal.json` or `<id>/<date>/<file>`. Nothing can be written outside the shelf,
+     * the read is capped, and a file that fails any of it leaves the phone exactly as it was.
      */
     private fun readBackup(uri: Uri) {
         Thread {
-            val root = File(filesDir, JOURNAL)
-            val incoming = File(filesDir, JOURNAL + "-incoming")
-            val old = File(filesDir, JOURNAL + "-old")
+            val root = Store.rootOf(filesDir)
+            val incoming = File(filesDir, Store.DIR + "-incoming")
+            val old = File(filesDir, Store.DIR + "-old")
             var files = 0
             var problem: String? = null
             runCatching {
@@ -450,17 +464,21 @@ class MainActivity : Activity() {
                             var total = 0L
                             while (true) {
                                 val e = zip.nextEntry ?: break
-                                val parts = e.name.split("/")
+                                val p = e.name.split("/")
+                                val named = when {
+                                    p.size == 2 -> Store.ID.matches(p[0]) && p[1] == Store.META
+                                    p.size == 3 -> Store.ID.matches(p[0]) && Store.DATE.matches(p[1]) &&
+                                        p[2].isNotEmpty() && p[2] != "." && p[2] != ".."
+                                    else -> false
+                                }
                                 if (e.name == MANIFEST) {
                                     val text = String(readEntry(zip), Charsets.UTF_8)
                                     seen = JSONObject(text).optString("app") == "ujournal"
-                                } else if (parts.size != 2 || parts[0] == ".." || parts[1] == ".." ||
-                                    parts[1].isEmpty() || !DATE.matches(parts[0])
-                                ) {
+                                } else if (!named) {
                                     problem = "That file is not a UJournal backup"
                                 } else {
-                                    val d = File(incoming, parts[0]).apply { mkdirs() }
-                                    val f = File(d, parts[1])
+                                    val f = File(incoming, e.name)
+                                    f.parentFile?.mkdirs()
                                     f.outputStream().use { out -> zip.copyTo(out) }
                                     total += f.length()
                                     files++
@@ -487,11 +505,15 @@ class MainActivity : Activity() {
                 }
             }
             if (problem != null) incoming.deleteRecursively()
-            val days = (root.listFiles() ?: emptyArray()).count { it.isDirectory }
-            val message = problem ?: ("Restored " + files + " file" + (if (files == 1) "" else "s") +
-                " into " + days + " day" + (if (days == 1) "" else "s"))
+            val books = (root.listFiles() ?: emptyArray())
+                .count { it.isDirectory && Store.ID.matches(it.name) }
+            val message = problem ?: ("Restored " + books + " journal" + (if (books == 1) "" else "s") +
+                " and " + files + " file" + (if (files == 1) "" else "s"))
             runOnUiThread {
-                if (problem == null) eval("window.journalResume&&window.journalResume()")
+                if (problem == null) {
+                    store = Store(applicationContext)
+                    eval("window.journalResume&&window.journalResume()")
+                }
                 eval("JR&&JR.toast(" + JSONObject.quote(message) + ")")
             }
         }.start()
@@ -619,11 +641,9 @@ class MainActivity : Activity() {
         /** Save a backup, read one back. */
         const val REQ_SAVE = 43
         const val REQ_OPEN = 44
-        /** Where every entry lives, and the marker a backup carries at its root. */
-        const val JOURNAL = "journal"
+        /** The marker a backup carries at its root. */
         const val MANIFEST = "ujournal-backup.json"
-        /** A journal large enough to need more than this is not one this app wrote. */
+        /** A shelf large enough to need more than this is not one this app wrote. */
         const val MAX_RESTORE = 512L * 1024 * 1024
-        val DATE = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")
     }
 }

@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+      There is deliberately no REQUEST_INSTALL_PACKAGES here any more. Up to 1.2.3 the app
+      downloaded its own update APK and handed it to Android's installer, and that hand-off is the
+      only thing the permission is for. To Play Protect, a sideloaded app that fetches code over
+      the network and then asks to install it is a dropper - and a journal that also asks for the
+      microphone is a worse-looking one - so it was flagged as harmful. The check is unchanged;
+      what changed is who installs the file: the release opens in the browser and the phone's own
+      installer takes the APK from outside the app.
+    -->
 
     <application
         android:allowBackup="true"
@@ -16,6 +25,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Not for updates any more: photos, video and recorded audio are written into the app's
+             own files and handed to the camera, the player and the picker through this provider. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

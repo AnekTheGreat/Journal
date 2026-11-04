@@ -30,8 +30,8 @@ android {
         // The version lives here, not in the run that built it. It used to be the workflow's run
         // number, which meant a build from a later run carried a higher versionCode than the
         // release cut before it - and Android refuses such a release as a downgrade. The code is
-        // computed from the name and only ever goes up: 1.6.0 -> 10600.
-        versionName = "1.6.0"
+        // computed from the name and only ever goes up: 1.6.1 -> 10601.
+        versionName = "1.6.1"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }

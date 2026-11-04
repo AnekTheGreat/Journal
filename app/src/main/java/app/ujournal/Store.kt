@@ -60,7 +60,7 @@ class Store(ctx: Context) {
     private fun ensure(): String {
         open?.let { if (File(root, it).isDirectory) return it }
         val first = journals().firstOrNull()?.id ?: newId()
-        if (!File(root, first).isDirectory) writeMeta(first, "My Journal")
+        if (!File(root, first).isDirectory) writeMeta(first, YOUR_JOURNAL)
         open = first
         return first
     }
@@ -87,7 +87,7 @@ class Store(ctx: Context) {
             val m = meta(d)
             Journal(
                 id = d.name,
-                name = m.optString("name").ifBlank { "My Journal" },
+                name = m.optString("name").ifBlank { YOUR_JOURNAL },
                 created = m.optString("created"),
                 entries = days.size,
                 last = days.maxOrNull()
@@ -97,7 +97,7 @@ class Store(ctx: Context) {
 
     fun create(name: String): String {
         val id = newId()
-        writeMeta(id, name.trim().ifBlank { "My Journal" }.take(60))
+        writeMeta(id, name.trim().ifBlank { YOUR_JOURNAL }.take(60))
         open = id
         return id
     }
@@ -110,11 +110,11 @@ class Store(ctx: Context) {
     }
 
     fun name(id: String = current): String =
-        meta(File(root, id)).optString("name").ifBlank { "My Journal" }
+        meta(File(root, id)).optString("name").ifBlank { YOUR_JOURNAL }
 
     fun rename(id: String, name: String) {
         if (!ID.matches(id) || !File(root, id).isDirectory) return
-        val clean = name.trim().ifBlank { "My Journal" }.take(60)
+        val clean = name.trim().ifBlank { YOUR_JOURNAL }.take(60)
         val m = meta(File(root, id)).put("name", clean)
         runCatching { File(File(root, id), META).writeText(m.toString()) }
     }
@@ -259,11 +259,23 @@ class Store(ctx: Context) {
      */
     private fun migrate(ctx: Context) {
         val legacy = File(ctx.filesDir, OLD)
-        if (!legacy.isDirectory) return
-        val id = if (File(root, "first").exists()) newId() else "first"
-        val target = File(root, id)
-        if (!target.exists() && legacy.renameTo(target)) {
-            if (!File(target, META).exists()) writeMeta(id, "My Journal")
+        if (legacy.isDirectory) {
+            val id = if (File(root, "first").exists()) newId() else "first"
+            val target = File(root, id)
+            if (!target.exists() && legacy.renameTo(target)) {
+                if (!File(target, META).exists()) writeMeta(id, YOUR_JOURNAL)
+            }
+        }
+        // Up to 1.6.0 the book the app makes for you was called "My Journal", which reads as though
+        // it belonged to the app rather than to the person writing in it. A book still carrying that
+        // default is renamed here - to the name the store now starts with - once, because the file
+        // that holds it is the file a restore reads. A name anyone actually chose is left alone, and
+        // this goes through rename() so the created date and the plans in that same file survive
+        // what writing a fresh meta would wipe.
+        (root.listFiles() ?: emptyArray<File>()).forEach { d ->
+            if (d.isDirectory && ID.matches(d.name) && meta(d).optString("name") == "My Journal") {
+                rename(d.name, YOUR_JOURNAL)
+            }
         }
     }
 
@@ -274,6 +286,9 @@ class Store(ctx: Context) {
 
         /** The key plans are kept under in journal.json, beside the name. */
         const val PLANS = "plans"
+
+        /** What the first book is called before anyone names it: theirs, not the app's. */
+        const val YOUR_JOURNAL = "Your Journal"
 
         /** A folder name this store wrote: short, and no path in it. */
         val ID = Regex("[A-Za-z0-9_-]{1,40}")

@@ -5,6 +5,21 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.6.1 - your journal, and the tabs that are always there
+
+### Fixed
+- **The book is yours, not the app's.** The journal the app starts for you was called "My Journal",
+  which read as though it belonged to UJournal instead of to the person writing in it. It is now
+  called "Your Journal", and a book still carrying the old default is renamed once on the next
+  launch - the entries, the attachments and the plans in it are untouched, and a name you chose
+  yourself is never changed.
+- **The tabs never disappear.** They used to vanish on the shelf, so the app opened on a screen with
+  no Journal, Calendar or Plans under it. They stay now: Journal is the shelf itself, and picking
+  Calendar or Plans there opens them in the journal you were last in.
+- **The shelf can write.** The + that sits above the tabs is on the shelf too, opening today's entry
+  in that same journal - starting a book is still the card at the top, but writing is never hidden
+  behind it.
+
 ## 1.6.0 — plans: a time, a few days away, or every year
 
 ### Added

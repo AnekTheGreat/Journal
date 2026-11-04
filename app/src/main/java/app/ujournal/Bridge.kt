@@ -1,0 +1,113 @@
+package app.ujournal
+
+import android.webkit.JavascriptInterface
+import org.json.JSONArray
+import org.json.JSONObject
+import java.time.LocalDate
+
+/**
+ * Everything the page is allowed to ask the phone for, and nothing more.
+ *
+ * The screen is `assets/index.html`, so the parts that cannot live in a page live here: the entries
+ * on disk, the pickers and the recorder, the tip links, and the update. Each method is a small,
+ * named promise - the page cannot reach a file, a database or an intent that is not spelled out
+ * below, which is what makes an over-the-air screen safe to accept.
+ *
+ * These are called on the WebView's JavaScript thread, so anything that touches the UI is handed
+ * to the activity's main thread first.
+ */
+class Bridge(private val ui: MainActivity) {
+
+    private val store = Store(ui.applicationContext)
+
+    private fun main(block: () -> Unit) { ui.runOnUiThread { block() } }
+
+    /** The page has drawn itself. Until this arrives the shell is ready to put the old screen back. */
+    @JavascriptInterface
+    fun ready() = ui.pageReady()
+
+    @JavascriptInterface
+    fun appVersion(): String = BuildConfig.VERSION_NAME
+
+    @JavascriptInterface
+    fun pageVersion(): String = PageStore.running(ui)
+
+    /** Every entry that has something in it, newest first. */
+    @JavascriptInterface
+    fun entries(): String {
+        val all = JSONArray()
+        runCatching { store.all().forEach { all.put(json(it)) } }
+        return all.toString()
+    }
+
+    @JavascriptInterface
+    fun load(date: String): String =
+        runCatching { json(store.load(LocalDate.parse(date))) }.getOrElse { "{}" }
+
+    /** The title and the body only: attachments are added and removed by name, never refused blind. */
+    @JavascriptInterface
+    fun save(date: String, title: String, body: String) {
+        runCatching {
+            val d = LocalDate.parse(date)
+            store.save(Entry(d, title, body, store.load(d).atts))
+        }
+    }
+
+    @JavascriptInterface
+    fun pick(date: String, kind: String) = main { ui.pick(date, kind) }
+
+    @JavascriptInterface
+    fun recordStart(date: String): Boolean =
+        runCatching { ui.startRecording(date) }.getOrDefault(false)
+
+    @JavascriptInterface
+    fun recordStop(date: String) = main { ui.stopRecording(date, true) }
+
+    @JavascriptInterface
+    fun recordCancel() = main { ui.stopRecording(null, false) }
+
+    @JavascriptInterface
+    fun remove(date: String, name: String) {
+        runCatching {
+            val d = LocalDate.parse(date)
+            val e = store.load(d)
+            val a = e.atts.firstOrNull { it.name == name } ?: return@runCatching
+            store.save(store.remove(e, a))
+        }
+    }
+
+    @JavascriptInterface
+    fun open(date: String, name: String) = main { ui.openAttachment(date, name) }
+
+    /** The page names an amount, never a URL: the links stay in [Support], where they are kept. */
+    @JavascriptInterface
+    fun tip(dollars: Int) = main {
+        Support.LINKS.firstOrNull { it.first == dollars }?.let { Support.open(ui, it.second) }
+    }
+
+    @JavascriptInterface
+    fun checkUpdates() = main { ui.checkUpdates(silent = false) }
+
+    @JavascriptInterface
+    fun updateNow(url: String, version: String) = ui.applyPage(url, version)
+
+    @JavascriptInterface
+    fun openRelease(version: String) = main { ui.openRelease(version) }
+
+    private fun json(e: Entry): String = JSONObject()
+        .put("date", e.date.toString())
+        .put("title", e.title)
+        .put("body", e.body)
+        .put("atts", JSONArray().apply {
+            e.atts.forEach { a ->
+                put(
+                    JSONObject()
+                        .put("name", a.name)
+                        .put("mime", a.mime)
+                        // The page draws a thumbnail straight from the file, so it needs the path.
+                        .put("path", store.file(e.date, a).absolutePath)
+                )
+            }
+        })
+        .toString()
+}

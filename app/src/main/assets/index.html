@@ -136,7 +136,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.6.2";
+const JOURNAL_PAGE = "1.6.3";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -866,6 +866,9 @@ const JOURNAL_PAGE = "1.6.2";
   window.journalResume = function () { if (S.home) home(); else refresh(); };
   // onPause asks for whatever was typed to be on disk before the phone takes the screen away.
   window.journalFlush = saveNow;
+  // The shell asks this before it swaps in a new screen: a day open means a draft being written, and
+  // that is the only moment a page update is worth delaying.
+  window.journalEditing = function () { return !!S.day; };
 
   home();
   call("ready");

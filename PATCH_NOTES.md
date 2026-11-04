@@ -5,6 +5,28 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.2.5 — target Android 16, and a Play copy updates through Play
+
+### Changed
+- **The journal now targets Android 16 (API 36).** Google Play has refused an upload that targets
+  less since 31 August 2026, so `compileSdk` and `targetSdk` are both 36. That needs a newer Android
+  Gradle Plugin — 8.10.1, with Gradle 8.11.1, both pinned in CI.
+- **A copy installed from Google Play updates through Play.** `Updater.fromPlay()` asks the phone
+  which app installed this copy; when the answer is the Play Store, the journal does not ask GitHub
+  at all and never offers an APK — Play is what installs that copy's updates. A sideloaded copy
+  keeps the GitHub check exactly as it was.
+
+### Added
+- **A Play-ready step in `release.yml`.** A release now stops before publishing unless `targetSdk`
+  is 36, `compileSdk` is 36, and the manifest asks for no `REQUEST_INSTALL_PACKAGES`.
+- **`PLAY_STORE.md`** — what to upload, the listing copy, the graphics still to supply by hand, and
+  the store declarations the journal needs for the microphone.
+
+### Fixed
+- **The day editor no longer runs under the status bar or the keyboard on Android 15 and 16.**
+  Target 36 means edge-to-edge is enforced; the editor pads itself for the system bars and the
+  keyboard, and the timeline and calendar already sit inside a `Scaffold` that does the same.
+
 ## 1.2.4 — the update no longer installs itself, so Play Protect stops calling it harmful
 
 ### Fixed

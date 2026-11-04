@@ -136,7 +136,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.6.0";
+const JOURNAL_PAGE = "1.6.1";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -195,16 +195,35 @@ const JOURNAL_PAGE = "1.6.0";
     $("view").innerHTML = h + othersCard() + supportCard();
   }
 
+  // The shelf is the Journal tab, not a place outside the app: the tabs stay under it, and so does
+  // the button that writes, so opening UJournal never lands somewhere with nothing to press. ＋ on
+  // the shelf is a new entry in the journal you were last in - starting a book is the card above,
+  // and it should not be the only thing a fresh screen offers.
   function home() {
     S.home = true; S.day = null; S.tab = 0;
     S.journals = parse(call("journals"), []) || [];
     $("day").classList.add("hide");
-    $("tabs").classList.add("hide");
-    $("fab").classList.add("hide");
-    $("fab").style.display = "none";
+    $("tabs").classList.remove("hide");
+    $("fab").classList.remove("hide");
+    $("fab").style.display = "block";
     $("backhome").style.display = "none";
     $("brand").textContent = "UJournal";
-    drawHome();
+    draw();
+  }
+
+  // A tab picked on the shelf opens in the journal that was last open; Journal itself is the shelf,
+  // so it never leaves it.
+  function goCurrent() {
+    var name = call("currentJournal");
+    if (!name) { say("Start a journal first"); return false; }
+    enterJournal(name);
+    return true;
+  }
+
+  function pickTab(n) {
+    if (S.home && n !== 0 && !goCurrent()) return;
+    S.tab = n;
+    draw();
   }
 
   function enterJournal(name) {
@@ -230,7 +249,7 @@ const JOURNAL_PAGE = "1.6.0";
       '<h2>Start a new journal</h2>' +
       '<p>A journal is a book of its own &mdash; its own timeline, its own calendar, its own ' +
       'entries. Name it something you will know it by.</p>' +
-      '<input id="jn" class="t nm" placeholder="My Journal" maxlength="60" autocomplete="off">' +
+      '<input id="jn" class="t nm" placeholder="Your Journal" maxlength="60" autocomplete="off">' +
       '<div class="row"><button id="jcancel">Cancel</button>' +
       '<button id="jgo" class="go">Start it</button></div>';
     $("sheet").classList.remove("hide");
@@ -238,7 +257,7 @@ const JOURNAL_PAGE = "1.6.0";
     $("jn").focus();
     $("jcancel").onclick = function () { $("sheet").classList.add("hide"); };
     $("jgo").onclick = function () {
-      var name = ($("jn").value || "").trim() || "My Journal";
+      var name = ($("jn").value || "").trim() || "Your Journal";
       $("sheet").classList.add("hide");
       call("create", name);
       enterJournal(call("currentJournal") || name);
@@ -339,10 +358,11 @@ const JOURNAL_PAGE = "1.6.0";
   }
 
   function draw() {
+    var t = S.home ? 0 : S.tab;
+    $("t0").className = t === 0 ? "on" : "";
+    $("t1").className = t === 1 ? "on" : "";
+    $("t2").className = t === 2 ? "on" : "";
     if (S.home) { drawHome(); return; }
-    $("t0").className = S.tab === 0 ? "on" : "";
-    $("t1").className = S.tab === 1 ? "on" : "";
-    $("t2").className = S.tab === 2 ? "on" : "";
     $("fab").style.display = S.day || S.tab === 2 ? "none" : "block";
     if (S.tab === 0) drawList(); else if (S.tab === 1) drawCal(); else drawPlans();
   }
@@ -788,10 +808,13 @@ const JOURNAL_PAGE = "1.6.0";
     return true;
   }
 
-  $("t0").onclick = function () { S.tab = 0; draw(); };
-  $("t1").onclick = function () { S.tab = 1; draw(); };
-  $("t2").onclick = function () { S.tab = 2; draw(); };
-  $("fab").onclick = function () { openDay(today()); };
+  $("t0").onclick = function () { pickTab(0); };
+  $("t1").onclick = function () { pickTab(1); };
+  $("t2").onclick = function () { pickTab(2); };
+  $("fab").onclick = function () {
+    if (S.home && !goCurrent()) return;
+    openDay(today());
+  };
   $("back").onclick = function () { closeDay(); };
   $("attach").onclick = openMenu;
   $("more").onclick = showMove;

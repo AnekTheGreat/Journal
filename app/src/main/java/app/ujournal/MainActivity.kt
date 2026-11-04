@@ -70,7 +70,10 @@ fun App(store: Store) {
     var tab by remember { mutableIntStateOf(0) }
     var rev by remember { mutableIntStateOf(0) }
     var update by remember { mutableStateOf<Update?>(null) }
-    LaunchedEffect(Unit) { update = Updater.check() }
+    val updaterCtx = LocalContext.current
+    // A copy installed from Play is updated by Play: comparing it against a GitHub release would
+    // offer an APK the store does not allow, signed with a key the store build does not have.
+    LaunchedEffect(Unit) { if (!Updater.fromPlay(updaterCtx)) update = Updater.check() }
 
     val day = open
     if (day != null) {
@@ -326,7 +329,10 @@ fun DayScreen(store: Store, date: LocalDate, onBack: () -> Unit) {
         if (ok) pending?.let { onPicked(listOf(it)) }
     }
 
-    Column(Modifier.fillMaxSize().background(Bg).verticalScroll(rememberScrollState())
+    // API 36 forces edge-to-edge, so the editor pads itself out of the status bar, the navigation
+    // bar and the keyboard rather than drawing the first line under them.
+    Column(Modifier.fillMaxSize().background(Bg).statusBarsPadding().navigationBarsPadding()
+        .imePadding().verticalScroll(rememberScrollState())
         .padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton({ back() }) { Text("‹ Back", color = Muted) }

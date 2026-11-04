@@ -5,6 +5,51 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.3.0 — the journal is a page now, so it updates without an installer
+
+### Changed
+- **UJournal draws a page instead of building its screen in Compose.** The timeline, the calendar,
+  the day editor, the attachment tiles, the tip jar and the update sheet are `assets/index.html`,
+  the same shape SideCut, MeasureT, My Hub and FamTM have. What stays native is the part a page
+  cannot do on Android: reading and writing the entries, the pickers and both cameras, the
+  microphone recorder, opening an attachment, the tip links, and the update itself. The page
+  reaches them through one bridge, which exposes nothing else.
+- **A screen update now arrives over the air.** On launch the journal reads `updates.json` from the
+  newest release; when it names a newer page, that page is fetched, checked, written into the app's
+  own storage and loaded in place. No APK, no browser, no installer prompt — and **Update now** is
+  one tap, which is what an update should have felt like all along.
+- **The APK is the shell, and only changes when the shell does.** A release that only touched the
+  screen costs nothing to install, because there is nothing to install; a release that changed the
+  bridge still offers the APK, and only to a copy that was not installed by Play.
+- **A copy installed from Google Play keeps the screen updates.** 1.2.5 made a Play copy skip the
+  check entirely; it now skips only the APK, so Play handles the build while the screen keeps
+  arriving on its own.
+- **Nothing about your entries moved.** They are the same `journal/YYYY-MM-DD/entry.json` files with
+  their attachments beside them, read and written by the same code — the page only asks it
+  questions. A backup is still a folder copy, and uninstalling still deletes it.
+- **The build lost four libraries.** Compose, activity-compose, the Material3 and foundation
+  artifacts, and Coil are all gone: what is left is the Android framework plus core-ktx, for the
+  FileProvider that hands an attachment to the app that opens it.
+
+### Fixed
+- **A bad page cannot leave you with a blank journal.** A download without the `ujournal-page`
+  marker or without the version the release promised is refused; a page that loads but never
+  reports that it drew is deleted and the bundled copy is loaded; a newly installed APK deletes any
+  page stored before it; and the file is replaced by a rename, so a half-written download is never
+  served. The worst an update can do is put back the screen the APK shipped with.
+- **The editor, the timeline and the calendar still sit clear of the status bar and the keyboard.**
+  Targeting API 36 means edge-to-edge with no opt-out, so the WebView itself is padded by the
+  system bars and the IME rather than being drawn under them.
+- **Text you type is saved by the page itself**, half a second after you stop typing and when you
+  leave the day, so closing the journal no longer depends on an editor being disposed.
+
+### Added
+- **The release manifest carries the screen.** `updates.json` now has `page`, `page_size`,
+  `page_sha256` and a `page_url` pinned to the release tag, so an update is always the page that
+  release shipped rather than whatever the branch says later.
+- **`release.yml` checks the page before publishing**: the tag, `versionName` and `JOURNAL_PAGE` all
+  have to agree, the marker has to be present, and the bundle has to contain the page.
+
 ## 1.2.5 — target Android 16, and a Play copy updates through Play
 
 ### Changed

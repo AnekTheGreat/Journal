@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>UJournal</title>
+<!--
+  ujournal-page
+
+  Every published copy of this screen carries this word. PageStore refuses a download that does not
+  contain it, and a page that names another version than the release promised is refused too, so a
+  half-finished file or an error page can never become the journal.
+-->
+<style>
+:root{--bg:#F4EBDD;--card:#FBF6EC;--tan:#C8AD8D;--sand:#E6D5BC;--ink:#4A3F35;--muted:#9C8B77}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:-apple-system,Roboto,system-ui,sans-serif}
+body{display:flex;flex-direction:column}
+header#bar{display:flex;align-items:center;gap:8px;padding:14px 18px 8px}
+#brand{font-family:Georgia,serif;font-size:24px;flex:1}
+#check{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 96px}
+nav#tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--sand);padding:6px 0 8px}
+nav#tabs button{flex:1;background:none;border:0;color:var(--muted);font-size:19px;display:flex;flex-direction:column;gap:2px;align-items:center}
+nav#tabs button span{font-size:11px;letter-spacing:.4px}
+nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;margin:0 10px}
+#fab{position:fixed;right:20px;bottom:78px;width:56px;height:56px;border-radius:28px;border:0;background:var(--tan);color:#fff;font-size:26px;line-height:1;box-shadow:0 6px 18px rgba(74,63,53,.22)}
+.year{font-family:Georgia,serif;font-size:32px;padding:16px 2px 2px}
+.month{color:var(--muted);font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:10px 2px 6px}
+.card{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:20px;padding:14px;margin-bottom:10px}
+.card .dn{width:46px;text-align:center;flex:0 0 46px}
+.card .dn b{display:block;font-family:Georgia,serif;font-size:25px;font-weight:400}
+.card .dn i{font-style:normal;font-size:10px;color:var(--muted);letter-spacing:1px}
+.card .txt{flex:1;min-width:0}
+.card .ti{font-family:Georgia,serif;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .bd{color:var(--muted);font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .at{color:var(--tan);font-size:12px}
+.thumb{width:64px;height:64px;border-radius:12px;object-fit:cover;flex:0 0 64px;background:var(--sand)}
+.thumb.p{display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px}
+.empty{text-align:center;color:var(--muted);font-family:Georgia,serif;font-size:18px;padding:70px 20px 26px;line-height:1.6}
+.support{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:20px;padding:16px 18px;margin:18px 0 8px}
+.support .s1{font-family:Georgia,serif;font-size:16px}
+.support .s2{color:var(--muted);font-size:12px;margin-top:3px}
+.support .h{color:var(--tan);font-size:20px;margin-left:auto}
+.cal-head{display:flex;align-items:center;gap:2px;padding:10px 0}
+.cal-head button{background:none;border:0;color:var(--ink);font-size:20px;padding:6px 10px}
+.cal-title{flex:1;text-align:center;font-family:Georgia,serif;font-size:20px}
+.dow,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow span{text-align:center;color:var(--muted);font-size:11px;padding:4px 0}
+.grid button{aspect-ratio:1;border:0;background:none;border-radius:50%;color:var(--ink);font-size:15px}
+.grid button.has{background:var(--tan);color:#fff}
+.today{text-align:center;padding:14px}
+.today button{background:none;border:0;color:var(--muted)}
+#day{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column}
+#day.hide,#sheet.hide,#menu.hide,#recbar.hide,#say.hide{display:none}
+.day-bar{display:flex;align-items:center;padding:8px 10px}
+.day-bar button{background:none;border:0;color:var(--ink);font-size:15px;padding:10px 12px}
+#back{color:var(--muted);flex:1;text-align:left}
+#day-body{flex:1;overflow-y:auto;padding:0 20px 120px}
+.day-date{color:var(--muted);font-size:13px;padding:2px 16px 10px}
+input.t{width:100%;border:0;background:none;font-family:Georgia,serif;font-size:27px;color:var(--ink);padding:6px 0;outline:none}
+textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;line-height:1.55;color:var(--ink);padding:6px 0;outline:none;resize:none;font-family:inherit}
+.atts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:10px}
+.tile{position:relative;aspect-ratio:1;border-radius:14px;background:var(--sand);overflow:hidden}
+.tile img{width:100%;height:100%;object-fit:cover}
+.tile .ico{font-size:26px;text-align:center;padding-top:26px}
+.tile .nm{font-size:10px;color:var(--ink);text-align:center;padding:4px 6px;overflow:hidden;max-height:28px}
+.tile .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px}
+.tile .x{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:11px;border:0;background:rgba(0,0,0,.42);color:#fff;font-size:11px;line-height:1}
+.tile.armed{outline:2px solid #B4533F;outline-offset:-2px}
+#recbar{position:fixed;left:16px;right:16px;bottom:16px;background:var(--card);border-radius:18px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(74,63,53,.2)}
+#recbar .dot{color:#B4533F}
+#recbar .t{flex:1;font-variant-numeric:tabular-nums}
+#recbar button{border:0;border-radius:12px;padding:8px 12px;font-size:13px}
+#sheet,#menu{position:fixed;inset:0;background:rgba(74,63,53,.34);display:flex;align-items:flex-end}
+.sheet-card,.menu-card{background:var(--card);border-radius:22px 22px 0 0;padding:22px 20px 26px;width:100%;max-height:80vh;overflow-y:auto}
+.sheet-card h2{font-family:Georgia,serif;font-size:21px;font-weight:400;margin:0 0 10px}
+.sheet-card p{color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 10px}
+.sheet-card ul{margin:0 0 14px;padding-left:18px;color:var(--ink);font-size:14px;line-height:1.6}
+.sheet-card .row{display:flex;gap:10px;justify-content:flex-end;padding-top:6px}
+.sheet-card .row button,.menu-card button{border:0;border-radius:14px;padding:11px 16px;font-size:15px;background:var(--sand);color:var(--ink)}
+.sheet-card .row .go{background:var(--tan);color:#fff}
+.menu-card button{display:block;width:100%;text-align:left;margin-bottom:8px;background:none;font-size:16px;padding:12px 6px;border-bottom:1px solid var(--sand);border-radius:0}
+#say{position:fixed;left:50%;transform:translateX(-50%);bottom:110px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:14px;font-size:13px;max-width:80%;text-align:center}
+</style>
+</head>
+<body>
+<header id="bar"><div id="brand">UJournal</div><button id="check" title="Check for updates">⟳</button></header>
+<main id="view"></main>
+<nav id="tabs"><button id="t0" class="on">📖<span>Journal</span></button><button id="t1">📅<span>Calendar</span></button></nav>
+<button id="fab">＋</button>
+
+<section id="day" class="hide">
+  <div class="day-bar"><button id="back">‹ Back</button><button id="attach">＋ Attach</button></div>
+  <div id="day-body"></div>
+</section>
+<div id="recbar" class="hide"></div>
+<div id="sheet" class="hide"><div class="sheet-card" id="sheet-card"></div></div>
+<div id="menu" class="hide"><div class="menu-card" id="menu-card"></div></div>
+<div id="say" class="hide"></div>
+
+<script>
+const JOURNAL_PAGE = "1.3.0";
+(function () {
+  "use strict";
+  var G = window.Journal || null;
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var S = { tab: 0, entries: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
+
+  function $(id) { return document.getElementById(id); }
+  function parse(t, d) { try { return t ? JSON.parse(t) : d; } catch (e) { return d; } }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function call(n) { try { return G && G[n] ? G[n].apply(G, Array.prototype.slice.call(arguments, 1)) : null; } catch (e) { return null; } }
+  function fileUrl(p) { return p ? encodeURI("file://" + p) : ""; }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function key(y, m, d) { return y + "-" + pad2(m + 1) + "-" + pad2(d); }
+  function asDate(s) { return new Date(s + "T12:00:00"); }
+  function today() { var n = new Date(); return key(n.getFullYear(), n.getMonth(), n.getDate()); }
+
+  var sayTimer = null;
+  function say(msg) {
+    var el = $("say"); el.textContent = msg; el.classList.remove("hide");
+    clearTimeout(sayTimer);
+    sayTimer = setTimeout(function () { el.classList.add("hide"); }, 2600);
+  }
+
+  // ---- the timeline ----
+
+  function card(e) {
+    var d = asDate(e.date);
+    var vis = (e.atts || []).filter(function (a) { return /^(image|video)\//.test(a.mime || ""); })[0];
+    var h = '<div class="card" data-date="' + esc(e.date) + '">';
+    h += '<div class="dn"><b>' + d.getDate() + '</b><i>' + d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 3).toUpperCase() + '</i></div>';
+    h += '<div class="txt"><div class="ti">' + esc(e.title || "Untitled") + '</div>';
+    if (e.body) h += '<div class="bd">' + esc(e.body) + '</div>';
+    if (e.atts && e.atts.length) h += '<div class="at">📎 ' + e.atts.length + '</div>';
+    h += '</div>';
+    if (vis) {
+      if (/^image\//.test(vis.mime)) h += '<img class="thumb" src="' + fileUrl(vis.path) + '" alt="">';
+      else h += '<div class="thumb p">▶</div>';
+    }
+    return h + '</div>';
+  }
+
+  function supportCard() {
+    return '<div class="support" data-tip="1"><div><div class="s1">Support UJournal</div>' +
+      '<div class="s2">A tip is paid through Stripe, on a card page of its own.</div></div>' +
+      '<div class="h">♥</div></div>';
+  }
+
+  function drawList() {
+    var v = $("view");
+    if (!S.entries.length) {
+      v.innerHTML = '<div class="empty">Your journal is waiting.<br>Tap ＋ to write today.</div>' + supportCard();
+      return;
+    }
+    var h = "", y = null, m = null;
+    S.entries.forEach(function (e) {
+      var d = asDate(e.date);
+      if (d.getFullYear() !== y) { y = d.getFullYear(); m = null; h += '<div class="year">' + y + '</div>'; }
+      if (d.getMonth() !== m) { m = d.getMonth(); h += '<div class="month">' + MONTHS[m] + '</div>'; }
+      h += card(e);
+    });
+    v.innerHTML = h + supportCard();
+  }
+
+  // ---- the calendar ----
+
+  function drawCal() {
+    var y = S.ym.getFullYear(), m = S.ym.getMonth();
+    var off = new Date(y, m, 1).getDay();
+    var len = new Date(y, m + 1, 0).getDate();
+    var have = {};
+    S.entries.forEach(function (e) { have[e.date] = 1; });
+    var h = '<div class="cal-head"><button data-ym="-12">«</button><button data-ym="-1">‹</button>' +
+      '<div class="cal-title">' + MONTHS[m] + ' ' + y + '</div>' +
+      '<button data-ym="1">›</button><button data-ym="12">»</button></div>';
+    h += '<div class="dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div><div class="grid">';
+    for (var i = 0; i < off; i++) h += '<span></span>';
+    for (var n = 1; n <= len; n++) {
+      var k = key(y, m, n);
+      h += '<button class="' + (have[k] ? "has" : "") + '" data-date="' + k + '">' + n + '</button>';
+    }
+    h += '</div><div class="today"><button data-today="1">Today</button></div>';
+    $("view").innerHTML = h;
+  }
+
+  function draw() {
+    $("t0").className = S.tab === 0 ? "on" : "";
+    $("t1").className = S.tab === 1 ? "on" : "";
+    $("fab").style.display = S.day ? "none" : "block";
+    if (S.tab === 0) drawList(); else drawCal();
+  }
+
+  function refresh(cb) {
+    S.entries = parse(call("entries"), []) || [];
+    draw();
+    if (cb) cb();
+  }
+
+  // ---- the day ----
+
+  function attsHtml(e) {
+    if (!e.atts || !e.atts.length) return "";
+    var h = "";
+    e.atts.forEach(function (a) {
+      var mime = a.mime || "";
+      h += '<div class="tile" data-open="' + esc(a.name) + '">';
+      if (/^image\//.test(mime)) h += '<img src="' + fileUrl(a.path) + '" alt="">';
+      else {
+        h += '<div class="ico">' + (/^video\//.test(mime) ? "🎥" : /^audio\//.test(mime) ? "🎵" : "📄") + '</div>';
+        h += '<div class="nm">' + esc(a.name) + '</div>';
+      }
+      if (/^video\//.test(mime)) h += '<div class="play">▶</div>';
+      h += '<button class="x" data-del="' + esc(a.name) + '">✕</button></div>';
+    });
+    return h;
+  }
+
+  function openDay(date) {
+    S.day = date;
+    var e = parse(call("load", date), null) || { date: date, title: "", body: "", atts: [] };
+    $("day").classList.remove("hide");
+    $("fab").style.display = "none";
+    var d = asDate(date);
+    $("day-body").innerHTML =
+      '<div class="day-date">' + esc(d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })) + '</div>' +
+      '<input id="t" class="t" placeholder="Title" value="' + esc(e.title) + '">' +
+      '<textarea id="b" class="b" placeholder="What&rsquo;s on your mind?">' + esc(e.body) + '</textarea>' +
+      '<div class="atts" id="atts">' + attsHtml(e) + '</div>';
+    $("t").addEventListener("input", touchSave);
+    $("b").addEventListener("input", touchSave);
+    $("t").addEventListener("blur", saveNow);
+    $("b").addEventListener("blur", saveNow);
+    bindAtts();
+  }
+
+  function reloadDay(date) {
+    if (S.day !== date) return;
+    var e = parse(call("load", date), null);
+    if (e) $("atts").innerHTML = attsHtml(e);
+  }
+
+  function touchSave() {
+    clearTimeout(S.saveTimer);
+    S.saveTimer = setTimeout(saveNow, 450);
+  }
+
+  function saveNow() {
+    if (!S.day) return;
+    var t = $("t"), b = $("b");
+    if (!t || !b) return;
+    clearTimeout(S.saveTimer);
+    S.saveTimer = null;
+    call("save", S.day, t.value, b.value);
+  }
+
+  function closeDay() {
+    saveNow();
+    var was = S.day;
+    S.day = null;
+    $("day").classList.add("hide");
+    $("fab").style.display = "block";
+    refresh();
+    return was;
+  }
+
+  function bindAtts() {
+    $("atts").addEventListener("click", function (ev) {
+      var x = ev.target.closest("[data-del]");
+      if (x) {
+        var tile = x.closest(".tile");
+        if (!tile.classList.contains("armed")) {
+          tile.classList.add("armed");
+          say("Tap ✕ again to remove " + x.getAttribute("data-del"));
+        } else {
+          call("remove", S.day, x.getAttribute("data-del"));
+          reloadDay(S.day);
+        }
+        return;
+      }
+      var o = ev.target.closest("[data-open]");
+      if (o) call("open", S.day, o.getAttribute("data-open"));
+    });
+  }
+
+  // ---- attaching ----
+
+  var KINDS = [
+    ["media", "🖼  Photos &amp; videos"],
+    ["audio", "🎵  Audio"],
+    ["file", "📄  Any file"],
+    ["photo", "📷  Take photo"],
+    ["video", "🎥  Record video"],
+    ["record", "🎙  Record audio"]
+  ];
+
+  function openMenu() {
+    var h = "";
+    KINDS.forEach(function (k) { h += '<button data-kind="' + k[0] + '">' + k[1] + '</button>'; });
+    $("menu-card").innerHTML = h;
+    $("menu").classList.remove("hide");
+  }
+
+  $("menu").addEventListener("click", function (ev) {
+    if (ev.target === $("menu")) { $("menu").classList.add("hide"); return; }
+    var b = ev.target.closest("[data-kind]");
+    if (!b) return;
+    var kind = b.getAttribute("data-kind");
+    $("menu").classList.add("hide");
+    if (kind === "record") startRec(); else call("pick", S.day, kind);
+  });
+
+  function startRec() {
+    var ok = call("recordStart", S.day);
+    if (ok === false || ok === "false" || ok === null) {
+      say("Allow the microphone, then tap Record audio again");
+      return;
+    }
+    S.rec = { secs: 0, timer: null };
+    var bar = $("recbar");
+    function tick() {
+      var s = S.rec.secs;
+      bar.innerHTML = '<span class="dot">●</span><span class="t">' + Math.floor(s / 60) + ':' + pad2(s % 60) + '</span>' +
+        '<button id="rst">Stop &amp; save</button><button id="rcx">Cancel</button>';
+      $("rst").onclick = function () { stopRec(true); };
+      $("rcx").onclick = function () { stopRec(false); };
+    }
+    tick();
+    bar.classList.remove("hide");
+    S.rec.timer = setInterval(function () { S.rec.secs++; tick(); }, 1000);
+  }
+
+  function stopRec(save) {
+    if (!S.rec) return;
+    clearInterval(S.rec.timer);
+    S.rec = null;
+    $("recbar").classList.add("hide");
+    if (save) call("recordStop", S.day); else call("recordCancel");
+  }
+
+  // ---- the update sheet ----
+
+  function showUpdate(u) {
+    S.upd = u;
+    var notes = (u.notes || []).map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("");
+    var isPage = u.kind === "page";
+    var h = '<h2>' + (isPage ? "UJournal " + esc(u.version) : "UJournal " + esc(u.version) + " is ready") + '</h2>';
+    h += '<p>' + (isPage ? "A new screen is ready: it replaces the one on this phone, with nothing installed." : "This release changed the app itself, so it comes from the release page.") + '</p>';
+    if (notes) h += '<ul>' + notes + '</ul>';
+    h += '<div class="row"><button id="later">Later</button>';
+    h += '<button id="go" class="go">' + (isPage ? "Update now" : "Open the release") + '</button></div>';
+    $("sheet-card").innerHTML = h;
+    $("sheet").classList.remove("hide");
+    $("later").onclick = function () { $("sheet").classList.add("hide"); };
+    $("go").onclick = function () {
+      $("sheet").classList.add("hide");
+      if (isPage) call("updateNow", u.url, u.version); else call("openRelease", u.version);
+    };
+  }
+
+  $("sheet").addEventListener("click", function (ev) {
+    if (ev.target === $("sheet")) $("sheet").classList.add("hide");
+  });
+
+  function showTips() {
+    var h = '<h2>Support UJournal</h2><p>UJournal is free and has no ads. Stripe takes the payment on its own page; nothing unlocks, because this is a thank you.</p><div class="row">';
+    [2, 5, 10, 25, 50].forEach(function (d) { h += '<button data-tip-amount="' + d + '">$' + d + '</button>'; });
+    $("sheet-card").innerHTML = h + '</div>';
+    $("sheet").classList.remove("hide");
+  }
+
+  $("sheet").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-tip-amount]");
+    if (!b) return;
+    $("sheet").classList.add("hide");
+    call("tip", parseInt(b.getAttribute("data-tip-amount"), 10));
+  });
+
+  // ---- wiring ----
+
+  $("t0").onclick = function () { S.tab = 0; draw(); };
+  $("t1").onclick = function () { S.tab = 1; draw(); };
+  $("fab").onclick = function () { openDay(today()); };
+  $("back").onclick = function () { closeDay(); };
+  $("attach").onclick = openMenu;
+  $("check").onclick = function () { say("Checking for updates…"); call("checkUpdates"); };
+
+  $("view").addEventListener("click", function (ev) {
+    if (ev.target.closest("[data-tip]")) { showTips(); return; }
+    var c = ev.target.closest("[data-date]");
+    if (c) { openDay(c.getAttribute("data-date")); return; }
+    var y = ev.target.closest("[data-ym]");
+    if (y) { S.ym = new Date(S.ym.getFullYear(), S.ym.getMonth() + parseInt(y.getAttribute("data-ym"), 10), 1); drawCal(); return; }
+    if (ev.target.closest("[data-today]")) { S.ym = new Date(); drawCal(); }
+  });
+
+  // The shell asks this before it closes: true means the page handled the back itself.
+  window.journalBack = function () {
+    if (!$("menu").classList.contains("hide")) { $("menu").classList.add("hide"); return true; }
+    if (!$("sheet").classList.contains("hide")) { $("sheet").classList.add("hide"); return true; }
+    if (S.rec) { stopRec(false); return true; }
+    if (S.day) { closeDay(); return true; }
+    if (S.tab !== 0) { S.tab = 0; draw(); return true; }
+    return false;
+  };
+
+  // What the shell calls back into: an attachment landed, there is an update, or something failed.
+  window.JR = {
+    attach: function (date) { reloadDay(date); refresh(); },
+    update: function (json) { var u = parse(json, null); if (u) showUpdate(u); },
+    toast: say
+  };
+
+  window.journalResume = function () { refresh(); };
+
+  refresh();
+  call("ready");
+})();
+</script>
+</body>
+</html>

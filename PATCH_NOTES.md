@@ -5,6 +5,16 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.2.3 — an update that says what changed
+
+### Fixed
+- 1.2.2 shipped a manifest with no notes in it at all: the extractor treated the `### Fixed`
+  subheading as the end of the entry, so it never reached a bullet. Subheadings are skipped now and
+  a wrapped line joins the bullet it belongs to, so the manifest carries whole sentences — six of
+  them for this release.
+- A release **fails** if it finds no note for its version, instead of publishing an update that
+  announces nothing.
+
 ## 1.2.2 — the notes that arrive with the update are whole sentences
 
 ### Fixed
@@ -33,8 +43,8 @@ releases, so a release is also the update every installed copy is offered.
 - **A release could not be installed over a build.** `versionCode` came from the workflow's run
   number, so a build from a later run carried a higher code than the release cut before it, and
   Android rejects a lower code as a downgrade: the download finished, the installer opened, and
-  nothing changed. The code is now computed from the version in `build.gradle.kts` — 1.2.2 is
-  10202 — so every release installs over what came before it.
+  nothing changed. The code is now computed from the version in `build.gradle.kts` — 1.2.3 is
+  10203 — so every release installs over what came before it.
 - **A check could fail without saying anything.** The request to `api.github.com` carried no
   `User-Agent`, which GitHub answers with 403, and the anonymous allowance is per address — a phone
   on a carrier shares one with everything behind that gateway. Requests now identify the app.

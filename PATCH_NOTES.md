@@ -5,6 +5,35 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.5.0 — it opens on your journals, and the timeline shows them again
+
+### Added
+- **A shelf to open on.** UJournal used to open straight into the timeline of one book. It opens on
+  your journals now: a **Start a new journal** card at the top, then the three you were last in —
+  each with how many entries it holds and the day it was last written in — and **All N journals**
+  when there are more than three. A book opens on its own name in the top bar, with ‹ beside it to
+  come back to the shelf.
+- **More than one journal.** A journal is a book: its own name, its own timeline, its own calendar,
+  its own entries and attachments. They live as `journals/<id>/` with a small `journal.json` for the
+  name, so nothing is locked in a database and a folder copy is still a copy of everything.
+- **Your existing journal becomes the first book.** The folder 1.3 wrote — `filesDir/journal` — is
+  moved into that shape once, on the first launch after this update, named *My Journal*. No entry
+  moves to a different day and nothing is left behind.
+
+### Fixed
+- **The timeline drew NaN over its cards.** `Bridge.entries()` was putting the JSON *text* of each
+  entry into the array instead of the object, so the page received an array of strings: `date` was
+  undefined, the year and month headings read **NaN** and **UNDEFINED**, and every entry became an
+  *Untitled* card with no body. It hands over the objects now, which is what those cards were
+  always meant to be given.
+- **The shelf keeps the journal's own controls to itself.** The ＋ button and the Journal / Calendar
+  tabs belong to a book, not to the list of them, so they are not on the shelf.
+
+### Changed
+- **A backup carries the whole shelf.** The one file from 1.4 now holds every journal: each book's
+  `journal.json`, then every day and every attachment in it. Restoring it puts the whole shelf back
+  on the new phone.
+
 ## 1.4.0 — the journal travels in one file
 
 ### Added

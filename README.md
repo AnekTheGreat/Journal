@@ -48,11 +48,11 @@ Needs JDK 17 and the Android SDK with platform 36 (build-tools 36.0.0).
 
 ```sh
 gradle :app:assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-gradle :app:assembleRelease      # signed only when the signing variables below are set
+gradle :app:assembleRelease      # signed only when the signing environment is present
 ```
 
-The version comes from `versionName` in `app/build.gradle.kts` — `1.3.0` today — and `versionCode`
-is computed from it (`10300`), so it only ever climbs. The page names the same version in
+The version comes from `versionName` in `app/build.gradle.kts` — `1.6.3` today — and `versionCode`
+is computed from it (`10603`), so it only ever climbs. The page names the same version in
 `JOURNAL_PAGE`, and both jobs refuse a build where they disagree.
 
 ## Updates
@@ -61,15 +61,16 @@ Two things can change, and only one of them is an install:
 
 - **The screen.** The release publishes `page_url` in `updates.json`, pinned to its own tag. A copy
   that finds it newer than the page it is drawing fetches it, checks the marker and the version,
-  writes it into the app's own storage and loads it. Nothing is downloaded that Android installs,
-  so Play Protect sees nothing, and a Play copy gets this exactly like a sideloaded one.
+  writes it into the app's own storage and loads it — as soon as it is found, without a tap. Nothing
+  is downloaded that Android installs, so Play Protect sees nothing, and a Play copy gets this
+  exactly like a sideloaded one.
 - **The shell.** A release that changed the bridge is offered as an APK, through the release page
   in the browser — a copy from Play is offered the Play listing instead, because Play is what
   installs that copy.
 
-A silent check runs once per launch and only speaks when something newer exists, so being current,
-being offline and a failed request all open the journal exactly as before. The ⟳ in the header asks
-on demand.
+A silent check runs on launch and again whenever the journal comes back to the front, at most once
+every ten minutes, and only speaks when something newer exists, so being current, being offline and
+a failed request all open the journal exactly as before. The ⟳ in the header asks on demand.
 
 ## Actions
 
@@ -81,31 +82,19 @@ on demand.
   page beside it, and publishes the signed APK, the AAB and the manifest.
 
 ```sh
-git tag v1.3.0 && git push origin v1.3.0
+git tag v1.6.3 && git push origin v1.6.3
 ```
 
 ## Signing
 
-There is no keystore and no password in this repository. The release key is base64-encoded in the
-repository's Actions secrets, and both workflows rebuild it in `$RUNNER_TEMP` for the length of the
-job:
+There is no keystore and no password in this repository. The release key is held in the
+repository's Actions secrets, and both workflows rebuild it on the runner for the length of the
+job, so a checkout carries no key material and a plain `assembleDebug` works without one.
 
-| Secret | What it holds |
-| --- | --- |
-| `KEYSTORE_BASE64` | the keystore, base64-encoded: `base64 -w0 ujournal.jks` |
-| `KEYSTORE_PASSWORD` | the keystore password |
-| `KEY_PASSWORD` | the key password (alias is `ujournal`) |
+Android only installs an update signed with the same key, so that key is the app's identity rather
+than a build detail: losing it means every installed copy has to be uninstalled and replaced.
 
-Without them nothing breaks locally: `assembleDebug` works and `assembleRelease` produces an
-unsigned APK that Android will refuse to install. To sign a release by hand:
+## Licence
 
-```sh
-export SIGNING_STORE_FILE=/absolute/path/ujournal.jks
-export SIGNING_STORE_PASSWORD=...
-export SIGNING_KEY_PASSWORD=...
-export SIGNING_KEY_ALIAS=ujournal
-gradle :app:assembleRelease
-```
-
-Keep that keystore somewhere safe: Android only installs an update signed with the same key, so
-losing it means every installed copy has to be uninstalled and replaced.
+UJournal is proprietary. Copyright (c) 2026 AnekTheGreat, all rights reserved — no part of it may
+be copied, reused, modified or redistributed without written permission. See [LICENSE](LICENSE).

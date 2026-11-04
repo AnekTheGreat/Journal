@@ -2,39 +2,48 @@ package app.ujournal
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** One published release: the version, where it can be read about and fetched, and what changed. */
-data class Update(val version: String, val url: String, val notes: String)
+/**
+ * One published release: the version, where it can be read about, what changed, and the page that
+ * release published - the screen itself, which this shell can take without Play and without an
+ * installer.
+ */
+data class Update(val version: String, val url: String, val notes: String, val page: String?)
 
 /**
- * OTA updates: read what the newest release is, compare it with the version this build carries,
- * and - only when that release is newer - take the owner to it.
+ * OTA updates, in two halves now.
  *
- * The answer comes from a manifest published WITH the release — the same shape SideCut's
+ * The first half is the screen. A release publishes `page_url`, and a copy that finds it newer than
+ * the page it is drawing fetches it and swaps it in place - the same thing SideCut, MeasureT, My Hub
+ * and FamTM do. Nothing is installed, so Play Protect has nothing to read as a dropper, and a
+ * wording change no longer costs an install.
+ *
+ * The second half is the app itself, for a release that changed the shell. That is still taken from
+ * the release page in the browser, because downloading an APK and handing it to Android's installer
+ * is what REQUEST_INSTALL_PACKAGES exists for and what made Play Protect flag a journal that also
+ * asks for the microphone. A copy Play delivered is offered neither: Play updates that one.
+ *
+ * The answer comes from a manifest published WITH the release - the same shape SideCut's
  * ota/updates.json, MeasureT's updates.json and FamTM's published page use: a version, the file,
  * its size and the notes for it. One fixed URL, so there is no API to rate-limit and no release tag
  * to parse, and the changelog travels with the build instead of being reconstructed on the phone.
  * The GitHub API and the releases feed stay behind it as fallbacks.
- *
- * WHAT IT NO LONGER DOES: download the update and install it. That needed
- * REQUEST_INSTALL_PACKAGES, and a sideloaded app that fetches code over the network and then asks
- * Android to install it is the shape Play Protect blocks — with the microphone a journal also
- * needs, it read the app as harmful. [browse] opens the release page in the browser instead; the
- * APK downloads there and the phone's own installer takes it from outside the app.
  */
 object Updater {
 
     private const val TAG = "UJournalUpdater"
+
+    /** The page is about 20 KB, so a download anywhere near this is a wrong URL, not an update. */
+    private const val MAX_PAGE = 4 * 1024 * 1024
 
     private val repo get() = BuildConfig.GITHUB_REPO
     private fun manifestUrl() =
@@ -52,11 +61,17 @@ object Updater {
             instanceFollowRedirects = true
         }
 
-    suspend fun check(): Update? = withContext(Dispatchers.IO) {
+    /** The check, off the main thread: the bridge and the launch both run it inside a Thread. */
+    fun checkAsync(done: (Update?) -> Unit) {
+        Thread { done(check()) }.start()
+    }
+
+    private fun check(): Update? {
         val manifest = manifestJson()
-        if (manifest != null) return@withContext fromManifest(manifest)
+        if (manifest != null) return fromManifest(manifest)
         val json = apiJson()
-        if (json != null) fromJson(json) else fromFeed()
+        if (json != null) return fromJson(json)
+        return fromFeed()
     }
 
     private fun manifestJson(): String? = try {
@@ -71,7 +86,7 @@ object Updater {
         null
     }
 
-    /** {"version","apk","size","notes","date"} — the manifest every app here publishes. */
+    /** {"version","apk","size","notes","page_url"} - the manifest every app here publishes. */
     private fun fromManifest(text: String): Update? = try {
         val j = JSONObject(text)
         val v = j.optString("version").removePrefix("v")
@@ -86,7 +101,10 @@ object Updater {
                 val notes = j.optJSONArray("notes")?.let { a ->
                     (0 until a.length()).joinToString("\n") { a.optString(it) }
                 } ?: ""
-                Update(v, "${downloads()}/v$v/$apk", notes)
+                // The screen a release published, pinned to its tag, so a page is always the page
+                // that shipped with the version it claims - not whatever is on the branch today.
+                val page = j.optString("page_url").takeIf { it.startsWith("https://") }
+                Update(v, "${downloads()}/v$v/$apk", notes, page)
             }
         }
     } catch (e: Exception) {
@@ -117,7 +135,7 @@ object Updater {
                 null
             }
             !newer(tag, BuildConfig.VERSION_NAME) -> null
-            else -> Update(tag, url, j.optString("body"))
+            else -> Update(tag, url, j.optString("body"), null)
         }
     } catch (e: Exception) {
         Log.w(TAG, "unreadable release: ${e.javaClass.simpleName}")
@@ -156,7 +174,8 @@ object Updater {
                 else Update(
                     v,
                     "${downloads()}/$tag/UJournal-$v.apk",
-                    "Published on GitHub."
+                    "Published on GitHub.",
+                    null
                 )
             }
         }
@@ -165,11 +184,44 @@ object Updater {
         null
     }
 
-    private fun newer(a: String, b: String): Boolean {
+    /** A new screen: the page a release published, read to the cap and no further. */
+    fun download(url: String): ByteArray? = try {
+        val c = open(url)
+        val code = c.responseCode
+        if (code != 200) {
+            Log.w(TAG, "page download answered $code")
+            null
+        } else {
+            c.inputStream.use { input ->
+                val out = ByteArrayOutputStream()
+                val buf = ByteArray(16 * 1024)
+                var total = 0
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    total += n
+                    if (total > MAX_PAGE) break
+                    out.write(buf, 0, n)
+                }
+                if (total > MAX_PAGE) {
+                    Log.w(TAG, "the page is larger than any page this app publishes")
+                    null
+                } else {
+                    out.toByteArray()
+                }
+            }
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "page unusable: ${e.javaClass.simpleName}")
+        null
+    }
+
+    fun newer(a: String, b: String): Boolean {
         val x = a.split(".").map { it.toIntOrNull() ?: 0 }
         val y = b.split(".").map { it.toIntOrNull() ?: 0 }
         for (i in 0 until maxOf(x.size, y.size)) {
-            val p = x.getOrElse(i) { 0 }; val q = y.getOrElse(i) { 0 }
+            val p = x.getOrElse(i) { 0 }
+            val q = y.getOrElse(i) { 0 }
             if (p != q) return p > q
         }
         return false
@@ -220,33 +272,6 @@ object Updater {
         }
     }
 
-    /**
-     * Where the update is actually taken from: the release page, opened in the browser.
-     *
-     * The app used to download the APK into its cache and hand it to Android's installer through a
-     * FileProvider. That hand-off is what REQUEST_INSTALL_PACKAGES is for, and it is what made Play
-     * Protect read the journal as harmful: fetching code and asking to install it is the dropper
-     * signature. Now the browser downloads the file and the phone's own installer, a different app
-     * with its own consent screen, installs it.
-     */
-    fun browse(ctx: Context, u: Update) {
-        // A Play copy is updated by Play itself, so there is no APK to open for it.
-        if (fromPlay(ctx)) {
-            openStore(ctx)
-            return
-        }
-        try {
-            ctx.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(page(u)))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "no browser for ${u.url}: ${e.javaClass.simpleName}")
-            Toast.makeText(ctx, "No browser on this phone to open the release", Toast.LENGTH_LONG)
-                .show()
-        }
-    }
-
-    /** The release page, which carries the APK and the notes beside it. */
-    private fun page(u: Update) = "https://github.com/$repo/releases/tag/v${u.version}"
+    /** The release page, which carries the notes and the APK beside them. */
+    fun releasePage(u: Update) = "https://github.com/$repo/releases/tag/v${u.version}"
 }

@@ -2,6 +2,7 @@ package app.ujournal
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -175,6 +176,51 @@ object Updater {
     }
 
     /**
+     * True when this copy was installed by the Play Store.
+     *
+     * A Play copy is updated by Play, so the journal must not offer it a download: store policy is
+     * that a Play-distributed app does not send its users to an APK, and the APK on the release
+     * page is signed with the upload key rather than the key Play delivers under - so it could not
+     * install over the store build anyway.
+     */
+    fun fromPlay(ctx: Context): Boolean = try {
+        val pm = ctx.packageManager
+        val installer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            pm.getInstallSourceInfo(ctx.packageName).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            pm.getInstallerPackageName(ctx.packageName)
+        }
+        installer == "com.android.vending"
+    } catch (e: Exception) {
+        Log.w(TAG, "installer unknown: ${e.javaClass.simpleName}")
+        false
+    }
+
+    /** The Play listing for this build. Play performs the update; the journal only opens it. */
+    fun openStore(ctx: Context) {
+        val id = ctx.packageName
+        val flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        try {
+            ctx.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$id")).addFlags(flags)
+            )
+        } catch (e: Exception) {
+            try {
+                ctx.startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=$id")
+                    ).addFlags(flags)
+                )
+            } catch (e2: Exception) {
+                Log.w(TAG, "no Play Store for $id: ${e2.javaClass.simpleName}")
+                Toast.makeText(ctx, "No Play Store on this phone", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /**
      * Where the update is actually taken from: the release page, opened in the browser.
      *
      * The app used to download the APK into its cache and hand it to Android's installer through a
@@ -184,6 +230,11 @@ object Updater {
      * with its own consent screen, installs it.
      */
     fun browse(ctx: Context, u: Update) {
+        // A Play copy is updated by Play itself, so there is no APK to open for it.
+        if (fromPlay(ctx)) {
+            openStore(ctx)
+            return
+        }
         try {
             ctx.startActivity(
                 Intent(Intent.ACTION_VIEW, Uri.parse(page(u)))

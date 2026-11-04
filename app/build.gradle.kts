@@ -1,7 +1,8 @@
+// Versions are pinned in settings.gradle.kts. The journal draws a web page now, so the only thing
+// this build needs from a library is FileProvider, which core-ktx carries.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 // Signing comes from the environment, so no key material is ever in this repository. CI writes
@@ -18,8 +19,8 @@ val signingAlias: String = System.getenv("SIGNING_KEY_ALIAS") ?: "ujournal"
 
 android {
     namespace = "app.ujournal"
-    // Google Play rejects an upload that targets API 34: since 31 August 2026 an update has to
-    // target Android 16 (API 36), and AGP 8.10 is the oldest plugin that can compile against it.
+    // Google Play rejects an upload that targets less than API 36: since 31 August 2026 an update
+    // has to target Android 16, and AGP 8.10 is the oldest plugin that can compile against it.
     compileSdk = 36
 
     defaultConfig {
@@ -29,8 +30,8 @@ android {
         // The version lives here, not in the run that built it. It used to be the workflow's run
         // number, which meant a build from a later run carried a higher versionCode than the
         // release cut before it - and Android refuses such a release as a downgrade. The code is
-        // computed from the name and only ever goes up: 1.2.5 -> 10205.
-        versionName = "1.2.5"
+        // computed from the name and only ever goes up: 1.3.0 -> 10300.
+        versionName = "1.3.0"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }
@@ -58,7 +59,6 @@ android {
     }
 
     buildFeatures {
-        compose = true
         buildConfig = true
     }
     compileOptions {
@@ -70,12 +70,4 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.activity:activity-compose:1.9.2")
-    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
-    implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("io.coil-kt:coil-video:2.7.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }

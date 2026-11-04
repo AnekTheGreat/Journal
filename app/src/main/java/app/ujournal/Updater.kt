@@ -3,28 +3,33 @@ package app.ujournal
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
+/** One published release: the version, where it can be read about and fetched, and what changed. */
 data class Update(val version: String, val url: String, val notes: String)
 
 /**
- * OTA updates: read what the newest release is, download the APK, hand it to the installer.
+ * OTA updates: read what the newest release is, compare it with the version this build carries,
+ * and - only when that release is newer - take the owner to it.
  *
  * The answer comes from a manifest published WITH the release — the same shape SideCut's
  * ota/updates.json, MeasureT's updates.json and FamTM's published page use: a version, the file,
  * its size and the notes for it. One fixed URL, so there is no API to rate-limit and no release tag
  * to parse, and the changelog travels with the build instead of being reconstructed on the phone.
  * The GitHub API and the releases feed stay behind it as fallbacks.
+ *
+ * WHAT IT NO LONGER DOES: download the update and install it. That needed
+ * REQUEST_INSTALL_PACKAGES, and a sideloaded app that fetches code over the network and then asks
+ * Android to install it is the shape Play Protect blocks — with the microphone a journal also
+ * needs, it read the app as harmful. [browse] opens the release page in the browser instead; the
+ * APK downloads there and the phone's own installer takes it from outside the app.
  */
 object Updater {
 
@@ -169,48 +174,28 @@ object Updater {
         return false
     }
 
-    /** Returns false (and opens the settings page) if the user hasn't allowed installs yet. */
-    fun ensurePermission(ctx: Context): Boolean {
-        if (ctx.packageManager.canRequestPackageInstalls()) return true
-        ctx.startActivity(
-            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${ctx.packageName}"))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-        Toast.makeText(ctx, "Allow installs for UJournal, then tap Update again", Toast.LENGTH_LONG).show()
-        return false
-    }
-
-    suspend fun download(ctx: Context, u: Update): Boolean = withContext(Dispatchers.IO) {
-        val dir = File(ctx.cacheDir, "updates").apply { mkdirs() }
-        val f = File(dir, "UJournal.apk")
-        var ok = false
+    /**
+     * Where the update is actually taken from: the release page, opened in the browser.
+     *
+     * The app used to download the APK into its cache and hand it to Android's installer through a
+     * FileProvider. That hand-off is what REQUEST_INSTALL_PACKAGES is for, and it is what made Play
+     * Protect read the journal as harmful: fetching code and asking to install it is the dropper
+     * signature. Now the browser downloads the file and the phone's own installer, a different app
+     * with its own consent screen, installs it.
+     */
+    fun browse(ctx: Context, u: Update) {
         try {
-            val c = open(u.url)
-            val code = c.responseCode
-            if (code != 200) {
-                Log.w(TAG, "download answered $code")
-            } else {
-                c.inputStream.use { i -> f.outputStream().use { o -> i.copyTo(o) } }
-                // An error page saved as an APK reaches Android as "there was a problem parsing
-                // the package", so the file has to look like one: a zip, and not tiny.
-                ok = f.length() > 20_000L &&
-                    f.inputStream().use { it.read() == 0x50 && it.read() == 0x4B }
-                if (!ok) Log.w(TAG, "${f.length()} bytes arrived that are not an APK")
-            }
+            ctx.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(page(u)))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
         } catch (e: Exception) {
-            Log.w(TAG, "download failed: ${e.javaClass.simpleName}")
+            Log.w(TAG, "no browser for ${u.url}: ${e.javaClass.simpleName}")
+            Toast.makeText(ctx, "No browser on this phone to open the release", Toast.LENGTH_LONG)
+                .show()
         }
-        // A half file handed to the installer next time fails there, with no way to tell why.
-        if (!ok) f.delete()
-        ok
     }
 
-    fun install(ctx: Context) {
-        val f = File(File(ctx.cacheDir, "updates"), "UJournal.apk")
-        val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", f)
-        ctx.startActivity(
-            Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-    }
+    /** The release page, which carries the APK and the notes beside it. */
+    private fun page(u: Update) = "https://github.com/$repo/releases/tag/v${u.version}"
 }

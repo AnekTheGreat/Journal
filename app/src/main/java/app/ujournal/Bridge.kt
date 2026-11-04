@@ -221,7 +221,7 @@ class Bridge(private val ui: MainActivity) {
 internal object Siblings {
     private val APPS = listOf(
         "journal" to "https://play.google.com/store/apps/details?id=app.ujournal",
-        "famtm" to "https://play.google.com/store/apps/details?id=com.familytree.app",
+        "famtm" to "https://play.google.com/store/apps/details?id=com.FamTM.app",
         "myhub" to "https://play.google.com/store/apps/details?id=com.myhub.app",
         "sidecut" to "https://play.google.com/store/apps/details?id=com.SideCut.myapp",
         "compass" to "https://play.google.com/store/apps/details?id=com.CompassEDC.myapp"

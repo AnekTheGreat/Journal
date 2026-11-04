@@ -5,6 +5,27 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+## 1.6.3 - updates take themselves, and they take a moment instead of a minute
+
+### Changed
+- **A new screen installs itself.** A page update used to be *offered*: the journal found it and
+  then stood still behind a sheet until someone tapped **Update now**. It is taken as soon as it is
+  found now - the screen is one file and installing nothing, so there was never anything to
+  consent to. The one exception is a day being written in: an update arriving mid-sentence waits,
+  and the next time the journal comes back it goes in.
+- **It checks more than once.** The check ran once per launch, so a journal left open on a desk
+  could sit on yesterday's screen for days. It now also runs when the journal comes back to the
+  front, at most once every ten minutes, so a new release lands on the next glance rather than the
+  next relaunch.
+- **The check can no longer hang.** Every address it reads redirects - the newest-release manifest
+  to a signed asset host, the asset to its own CDN - and the old 12-second connect and 25-second
+  read timeouts meant one stalled redirect looked like an update that never arrives. They are four
+  and eight seconds now: still generous for a 1 KB manifest and a 42 KB page, and a check that does
+  run out simply says nothing and tries again later, instead of holding a connection open.
+- **The app itself still asks.** A release that changed the shell cannot install itself without the
+  permission that got UJournal flagged as a dropper, so that one still opens the release page - and
+a copy Play delivered is still offered neither.
+
 ## 1.6.2 - the other apps open their Play listings
 
 ### Changed

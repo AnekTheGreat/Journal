@@ -15,8 +15,8 @@ the declarations Play asks for before it reviews anything.
 | Target SDK | 36 — Play has refused an upload below API 36 since 31 August 2026 |
 | Signing | upload key from the `KEYSTORE_BASE64` secret; Play App Signing re-signs what is delivered |
 
-`release.yml` stops a release before publishing unless the bundle is API 36 and the manifest asks
-for no `REQUEST_INSTALL_PACKAGES`.
+`release.yml` stops a release before publishing unless the bundle is API 36 and the APK it just
+built asks for no `REQUEST_INSTALL_PACKAGES`.
 
 Turn on **Play App Signing**: Google then holds the app signing key and this repository only the
 upload key, which is what makes a lost keystore survivable.
@@ -70,12 +70,13 @@ into the entry it belongs to.
 
 | Asset | Size | Where |
 | --- | --- | --- |
-| App icon | 512 × 512 PNG, 32-bit, no alpha | [play/icon-512.png](play/icon-512.png) |
-| Feature graphic | 1024 × 500 PNG/JPG | [play/feature-graphic.png](play/feature-graphic.png) |
+| App icon | 512 × 512 PNG, 32-bit, no alpha | `play/icon-512.png` |
+| Feature graphic | 1024 × 500 PNG/JPG | `play/feature-graphic.png` |
 | Phone screenshots | 2–8, at least 1080 px on the long edge | **still to take**: timeline, calendar, a day with a photo, the editor, the recorder |
 
-The icon is the launcher icon redrawn at store size from the same 108-unit vector the app ships;
-the feature graphic is that icon on the journal's own paper background.
+Both graphics are rendered rather than hand-drawn: `python3 dev/play-art.py` writes the two files
+above from the launcher icon's own geometry and colours, in the two sizes Play asks for. Pillow is
+the only dependency. Upload those two files.
 
 ## 4. App content
 

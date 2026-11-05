@@ -359,9 +359,10 @@ class MainActivity : Activity() {
     // ---- carrying the shelf to a new phone ----
 
     /**
-     * Write every journal, every entry and every attachment into one file, wherever the phone's own
-     * Save dialog points. The archive mirrors the shelf - `<id>/journal.json` and `<id>/<date>/file` -
-     * and begins with a manifest that says what it is and how much of it there is.
+     * Write the journal, every entry and every attachment into one file, wherever the phone's own
+     * Save dialog points. The archive keeps the on-disk shape - `<id>/journal.json` and
+     * `<id>/<date>/file` - so a backup made by 1.6 still restores, and begins with a manifest that
+     * says what it is and how much of it there is.
      */
     fun exportAll() {
         val i = Intent(Intent.ACTION_CREATE_DOCUMENT)
@@ -436,8 +437,7 @@ class MainActivity : Activity() {
                     }
                 } != null
             }.getOrDefault(false)
-            val shown = "Backed up " + books.size + " journal" + (if (books.size == 1) "" else "s") +
-                ", " + files + " file" + (if (files == 1) "" else "s")
+            val shown = "Backed up your journal, " + files + " file" + (if (files == 1) "" else "s")
             runOnUiThread {
                 eval(
                     "JR&&JR.toast(" +
@@ -513,10 +513,10 @@ class MainActivity : Activity() {
                 }
             }
             if (problem != null) incoming.deleteRecursively()
-            val books = (root.listFiles() ?: emptyArray())
-                .count { it.isDirectory && Store.ID.matches(it.name) }
-            val message = problem ?: ("Restored " + books + " journal" + (if (books == 1) "" else "s") +
-                " and " + files + " file" + (if (files == 1) "" else "s"))
+            // Store's constructor is what folds an older multi-book backup into the single journal, so
+            // this is also the moment a 1.6 backup stops looking like a shelf.
+            val message = problem ?: ("Restored your journal and " + files + " file" +
+                (if (files == 1) "" else "s"))
             runOnUiThread {
                 if (problem == null) {
                     store = Store(applicationContext)

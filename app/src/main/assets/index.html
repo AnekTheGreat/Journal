@@ -19,8 +19,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 body{display:flex;flex-direction:column}
 header#bar{display:flex;align-items:center;gap:6px;padding:14px 16px 8px}
 #brand{font-family:Georgia,serif;font-size:24px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#check,#more,#backhome{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
-#backhome{display:none;font-size:24px;padding:4px 6px 4px 0}
+#check,#more{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
 main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 96px}
 nav#tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--sand);padding:6px 0 8px}
 nav#tabs button{flex:1;background:none;border:0;color:var(--muted);font-size:19px;display:flex;flex-direction:column;gap:2px;align-items:center}
@@ -121,7 +120,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 </style>
 </head>
 <body>
-<header id="bar"><button id="backhome" title="All journals">‹</button><div id="brand">UJournal</div><button id="more" title="Back up or move to a new device">⋯</button><button id="check" title="Check for updates">⟳</button></header>
+<header id="bar"><div id="brand">UJournal</div><button id="more" title="Back up or move to a new device">⋯</button><button id="check" title="Check for updates">⟳</button></header>
 <main id="view"></main>
 <nav id="tabs" class="hide"><button id="t0" class="on">📖<span>Journal</span></button><button id="t1">📅<span>Calendar</span></button><button id="t2">🎉<span>Plans</span></button></nav>
 <button id="fab" class="hide">＋</button>
@@ -136,12 +135,12 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.6.3";
+const JOURNAL_PAGE = "1.7.0";
 (function () {
   "use strict";
   var G = window.Journal || null;
   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  var S = { tab: 0, home: true, journals: [], name: "", entries: [], plans: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
+  var S = { tab: 0, name: "", entries: [], plans: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
 
   function $(id) { return document.getElementById(id); }
   function parse(t, d) { try { return t ? JSON.parse(t) : d; } catch (e) { return d; } }
@@ -161,122 +160,23 @@ const JOURNAL_PAGE = "1.6.3";
     sayTimer = setTimeout(function () { el.classList.add("hide"); }, 2600);
   }
 
-  // ---- the shelf ----
+  // ---- the journal ----
 
-  // What a book says about itself: how much is in it, and when it was last written in. A book with
-  // nothing in it says so instead of showing a date it does not have.
-  function jline(j) {
-    var n = Number(j.entries) || 0;
-    if (!n) return "No entries yet";
-    return n + (n === 1 ? " entry" : " entries") + (j.last ? " · last " + day(j.last) : "");
-  }
-
-  function jcard(j) {
-    return '<div class="card" data-jid="' + esc(j.id) + '"><div class="txt">' +
-      '<div class="jname">' + esc(j.name) + '</div>' +
-      '<div class="bd">' + esc(jline(j)) + '</div></div><div class="chev">›</div></div>';
-  }
-
-  function drawHome() {
-    var all = S.journals || [];
-    var recent = all.slice(0, 3);
-    var h = '<div class="hello">Your journals</div>';
-    h += '<button class="newj" data-new="1"><span class="plus">＋</span><span>' +
-      '<b>Start a new journal</b><i>A book of its own, with nothing in it yet</i></span></button>';
-    if (recent.length) {
-      h += '<div class="month">Recent</div>';
-      recent.forEach(function (j) { h += jcard(j); });
-      if (all.length > recent.length) {
-        h += '<button class="allj" data-allj="1">All ' + all.length + ' journals ›</button>';
-      }
-    } else {
-      h += '<div class="empty">No journals on this phone yet.<br>Start one above.</div>';
-    }
-    $("view").innerHTML = h + othersCard() + supportCard();
-  }
-
-  // The shelf is the Journal tab, not a place outside the app: the tabs stay under it, and so does
-  // the button that writes, so opening UJournal never lands somewhere with nothing to press. ＋ on
-  // the shelf is a new entry in the journal you were last in - starting a book is the card above,
-  // and it should not be the only thing a fresh screen offers.
-  function home() {
-    S.home = true; S.day = null; S.tab = 0;
-    S.journals = parse(call("journals"), []) || [];
-    $("day").classList.add("hide");
-    $("tabs").classList.remove("hide");
-    $("fab").classList.remove("hide");
-    $("fab").style.display = "block";
-    $("backhome").style.display = "none";
-    $("brand").textContent = "UJournal";
-    draw();
-  }
-
-  // A tab picked on the shelf opens in the journal that was last open; Journal itself is the shelf,
-  // so it never leaves it.
-  function goCurrent() {
-    var name = call("currentJournal");
-    if (!name) { say("Start a journal first"); return false; }
-    enterJournal(name);
-    return true;
-  }
-
-  function pickTab(n) {
-    if (S.home && n !== 0 && !goCurrent()) return;
-    S.tab = n;
-    draw();
-  }
-
-  function enterJournal(name) {
-    S.home = false; S.name = name || "Journal";
-    $("tabs").classList.remove("hide");
-    $("fab").classList.remove("hide");
-    $("fab").style.display = "block";
-    $("backhome").style.display = "block";
+  // One journal, opened the moment the page starts. The shell keeps it in journals/<id>/..., and the
+  // page never asks which book it is looking at: there is nothing to pick, and nothing to name
+  // before the first word.
+  function start() {
+    S.name = call("currentJournal") || "UJournal";
     $("brand").textContent = S.name;
-    S.tab = 0;
+    $("tabs").classList.remove("hide");
+    $("fab").classList.remove("hide");
+    $("fab").style.display = "block";
     refresh();
   }
 
-  function openJournal(id) {
-    var name = call("openJournal", id);
-    if (name) enterJournal(name); else { say("That journal is not here any more"); home(); }
-  }
-
-  // A journal needs no settings: a name, and then it is a book. The name is asked for in a sheet,
-  // because the shell has no dialog and a page should not use alert().
-  function showNewJournal() {
-    $("sheet-card").innerHTML =
-      '<h2>Start a new journal</h2>' +
-      '<p>A journal is a book of its own &mdash; its own timeline, its own calendar, its own ' +
-      'entries. Name it something you will know it by.</p>' +
-      '<input id="jn" class="t nm" placeholder="Your Journal" maxlength="60" autocomplete="off">' +
-      '<div class="row"><button id="jcancel">Cancel</button>' +
-      '<button id="jgo" class="go">Start it</button></div>';
-    $("sheet").classList.remove("hide");
-    $("jn").value = "";
-    $("jn").focus();
-    $("jcancel").onclick = function () { $("sheet").classList.add("hide"); };
-    $("jgo").onclick = function () {
-      var name = ($("jn").value || "").trim() || "Your Journal";
-      $("sheet").classList.add("hide");
-      call("create", name);
-      enterJournal(call("currentJournal") || name);
-    };
-  }
-
-  function showAllJournals() {
-    var h = '<h2>All journals</h2>';
-    (S.journals || []).forEach(function (j) {
-      h += '<button class="pick" data-jid="' + esc(j.id) + '">' + esc(j.name) +
-        '<i>' + esc(jline(j)) + '</i></button>';
-    });
-    h += '<div class="row" style="padding-top:16px"><button id="jclose">Close</button></div>';
-    $("sheet-card").innerHTML = h;
-    $("sheet").classList.remove("hide");
-    $("jclose").onclick = function () { $("sheet").classList.add("hide"); };
-    $("sheet-card").querySelectorAll("[data-jid]").forEach(function (b) {
-      b.onclick = function () { $("sheet").classList.add("hide"); openJournal(b.getAttribute("data-jid")); };
-    });
+  function pickTab(n) {
+    S.tab = n;
+    draw();
   }
 
   // ---- the timeline ----
@@ -358,17 +258,15 @@ const JOURNAL_PAGE = "1.6.3";
   }
 
   function draw() {
-    var t = S.home ? 0 : S.tab;
+    var t = S.tab;
     $("t0").className = t === 0 ? "on" : "";
     $("t1").className = t === 1 ? "on" : "";
     $("t2").className = t === 2 ? "on" : "";
-    if (S.home) { drawHome(); return; }
     $("fab").style.display = S.day || S.tab === 2 ? "none" : "block";
     if (S.tab === 0) drawList(); else if (S.tab === 1) drawCal(); else drawPlans();
   }
 
   function refresh(cb) {
-    if (S.home) { home(); if (cb) cb(); return; }
     S.entries = parse(call("entries"), []) || [];
     S.plans = parse(call("plans"), []) || [];
     draw();
@@ -730,7 +628,7 @@ const JOURNAL_PAGE = "1.6.3";
     if (save) call("recordStop", S.day); else call("recordCancel");
   }
 
-  // ---- moving the journals to another phone ----
+  // ---- moving the journal to another phone ----
 
   // One file holds every journal, every entry and everything attached to it. The shell writes it
   // where the phone's own Save dialog points, so a backup can go to Downloads, a card or a cloud
@@ -751,7 +649,7 @@ const JOURNAL_PAGE = "1.6.3";
     $("rs").onclick = function () {
       if (!this.getAttribute("data-armed")) {
         this.setAttribute("data-armed", "1");
-        this.textContent = "Replace these journals?";
+        this.textContent = "Replace your journal?";
         return;
       }
       $("sheet").classList.add("hide");
@@ -811,27 +709,19 @@ const JOURNAL_PAGE = "1.6.3";
   $("t0").onclick = function () { pickTab(0); };
   $("t1").onclick = function () { pickTab(1); };
   $("t2").onclick = function () { pickTab(2); };
-  $("fab").onclick = function () {
-    if (S.home && !goCurrent()) return;
-    openDay(today());
-  };
+  $("fab").onclick = function () { openDay(today()); };
   $("back").onclick = function () { closeDay(); };
   $("attach").onclick = openMenu;
   $("more").onclick = showMove;
-  $("backhome").onclick = home;
   $("check").onclick = function () { say("Checking for updates…"); call("checkUpdates"); };
 
   $("view").addEventListener("click", function (ev) {
     if (ev.target.closest("[data-tip]")) { showTips(); return; }
     if (ev.target.closest("[data-apps]")) { showOthers(); return; }
-    if (ev.target.closest("[data-new]")) { showNewJournal(); return; }
-    if (ev.target.closest("[data-allj]")) { showAllJournals(); return; }
     var np = ev.target.closest("[data-plan-new]");
     if (np) { var at = np.getAttribute("data-plan-new"); showPlan(null, at && at !== "1" ? at : today()); return; }
     var pr = ev.target.closest("[data-plan]");
     if (pr) { openPlanFrom(pr); return; }
-    var j = ev.target.closest("[data-jid]");
-    if (j) { openJournal(j.getAttribute("data-jid")); return; }
     var c = ev.target.closest("[data-date]");
     if (c) { openDay(c.getAttribute("data-date")); return; }
     var y = ev.target.closest("[data-ym]");
@@ -852,7 +742,7 @@ const JOURNAL_PAGE = "1.6.3";
     if (!$("sheet").classList.contains("hide")) { $("sheet").classList.add("hide"); return true; }
     if (S.rec) { stopRec(false); return true; }
     if (S.day) { closeDay(); return true; }
-    if (!S.home) { home(); return true; }
+    // At the top the back button belongs to Android: there is nowhere left to go inside the page.
     return false;
   };
 
@@ -863,14 +753,14 @@ const JOURNAL_PAGE = "1.6.3";
     toast: say
   };
 
-  window.journalResume = function () { if (S.home) home(); else refresh(); };
+  window.journalResume = function () { refresh(); };
   // onPause asks for whatever was typed to be on disk before the phone takes the screen away.
   window.journalFlush = saveNow;
   // The shell asks this before it swaps in a new screen: a day open means a draft being written, and
   // that is the only moment a page update is worth delaying.
   window.journalEditing = function () { return !!S.day; };
 
-  home();
+  start();
   call("ready");
 })();
 </script>

@@ -11,9 +11,11 @@ import java.time.LocalDate
 /**
  * Everything the page is allowed to ask the phone for, and nothing more.
  *
- * The screen is `assets/index.html`, so the parts that cannot live in a page live here: the shelf of
- * journals, the entries on disk, the plans in the calendar, the pickers and the recorder, the tip
- * links, the update, and the one file a journal can be carried to a new phone in. Each method is a
+ * The screen is `assets/index.html`, so the parts that cannot live in a page live here: the journal
+ * on disk, the entries, the plans in the calendar, the pickers and the recorder, the tip links, the
+ * update, and the one file a journal can be carried to a new phone in. There is one journal - the
+ * shelf this class used to expose is gone - so the page asks for the journal's name and nothing
+ * else about which book it is looking at. Each method is a
  * small, named promise - the page cannot reach a file, a database or an intent that is not spelled
  * out below, which is what makes an over-the-air screen safe to accept.
  *
@@ -36,40 +38,11 @@ class Bridge(private val ui: MainActivity) {
     @JavascriptInterface
     fun pageVersion(): String = PageStore.running(ui)
 
-    /** The shelf: id, name, how many days it holds and the last one written in. */
-    @JavascriptInterface
-    fun journals(): String {
-        val all = JSONArray()
-        runCatching {
-            store.journals().forEach { j ->
-                all.put(
-                    JSONObject()
-                        .put("id", j.id)
-                        .put("name", j.name)
-                        .put("created", j.created)
-                        .put("entries", j.entries)
-                        .put("last", j.last ?: "")
-                )
-            }
-        }
-        return all.toString()
-    }
-
-    /** Start a book and open it. The page asks for a name first, and gets the open book's name back. */
-    @JavascriptInterface
-    fun create(name: String): String = runCatching { store.create(name) }.getOrDefault("")
-
-    /** Open a book from the shelf. Empty when that id is not on this phone. */
-    @JavascriptInterface
-    fun openJournal(id: String): String = runCatching {
-        if (store.open(id)) store.name() else ""
-    }.getOrDefault("")
-
-    /** The open book's name, for the top bar. */
+    /** The journal's name, for the top bar. */
     @JavascriptInterface
     fun currentJournal(): String = runCatching { store.name() }.getOrDefault("")
 
-    /** Every entry that has something in it in the open book, newest first. */
+    /** Every entry that has something in it, newest first. */
     @JavascriptInterface
     fun entries(): String {
         val all = JSONArray()

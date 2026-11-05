@@ -5,6 +5,16 @@ an AAB for Play Console, made by
 [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
 releases, so a release is also the update every installed copy is offered.
 
+
+## 1.7.0 - one journal, opened straight away
+
+### Removed
+- **The shelf.** "Your journals", "Start a new journal", "All journals" and the back arrow that led
+  to them are gone. UJournal is one journal now: the app opens on the timeline and the ＋ button is
+  the first thing to press. Books already on a phone are folded into one on the first launch after
+  this update - every day, every attachment and every calendar plan is kept, a day that appeared in
+  two books is put aside rather than overwritten, and a backup made before this version still
+  restores.
 ## 1.6.3 - updates take themselves, and they take a moment instead of a minute
 
 ### Changed

@@ -11,9 +11,6 @@ import java.time.LocalDate
 data class Att(val name: String, val mime: String)
 data class Entry(val date: LocalDate, val title: String, val body: String, val atts: List<Att>)
 
-/** One book: what it is called, when it was started, and what is in it. */
-data class Journal(val id: String, val name: String, val created: String, val entries: Int, val last: String?)
-
 /**
  * A plan is something that happens on a day: an hour on a Tuesday, something that runs over several
  * days, or a birthday that comes round every year. [start] and [end] are dates, and the times are
@@ -36,10 +33,11 @@ data class Plan(
  *   journals/<id>/journal.json        {"name":"...","created":"YYYY-MM-DD","plans":[...]}
  *   journals/<id>/YYYY-MM-DD/entry.json + attachments beside it
  *
- * A journal is a book, and there can be more than one, which is why a day is addressed through the
- * book it lives in. [current] is the one the page is looking at; [journals] is the shelf. The folder
- * 1.3 wrote - filesDir/journal - is moved into this shape once, on the first launch after the
- * update, so an existing journal becomes the first book and no entry is left behind.
+ * There is ONE journal. A day is still addressed through a book folder, because that is the shape
+ * every backup already has and a restore already understands - but the shelf that used to sit in
+ * front of it is gone: [collapse] folds any books found on disk into one, and [current] is always
+ * that book. The folder 1.3 wrote - filesDir/journal - is moved into this shape once, on the first
+ * launch after the update, so an existing journal becomes the journal and no entry is left behind.
  *
  * Plans live in the same journal.json as the name, because that file is what a backup already copies
  * for each book: the calendar travels to a new phone with the entries instead of needing a format of
@@ -49,20 +47,89 @@ class Store(ctx: Context) {
     private val cr = ctx.contentResolver
     private val root = File(ctx.filesDir, DIR).apply { mkdirs() }
 
-    /** The open book. Null only before the shelf has been read. */
+    /** The journal's folder. Null only before the disk has been read. */
     private var open: String? = null
 
-    init { migrate(ctx) }
+    init {
+        migrate(ctx)
+        open = collapse()
+    }
 
-    /** The book being drawn, healing a stale id (a restore can replace the whole shelf). */
+    /** The journal being drawn, healing a stale id (a restore can replace everything on disk). */
     val current: String get() = ensure()
 
     private fun ensure(): String {
         open?.let { if (File(root, it).isDirectory) return it }
-        val first = journals().firstOrNull()?.id ?: newId()
-        if (!File(root, first).isDirectory) writeMeta(first, YOUR_JOURNAL)
-        open = first
-        return first
+        val id = collapse() ?: newId()
+        if (!File(root, id).isDirectory) writeMeta(id, YOUR_JOURNAL)
+        open = id
+        return id
+    }
+
+    /** Every book folder on disk, which after [collapse] is exactly one. */
+    private fun books(): List<File> = (root.listFiles() ?: emptyArray())
+        .filter { it.isDirectory && ID.matches(it.name) }
+        .sortedBy { it.name }
+
+    private fun daysOf(d: File): List<File> = (d.listFiles() ?: emptyArray())
+        .filter { it.isDirectory && DATE.matches(it.name) }
+
+    /**
+     * ONE JOURNAL.
+     *
+     * Up to 1.6 this app kept a shelf, and the page showed it: a list of books, a card to start
+     * another, an "All journals" sheet. That is what was asked to go, and this is where it goes:
+     * any books already on a phone are folded into one rather than left stranded behind a UI that
+     * can no longer reach them.
+     *
+     * The book kept is the one with the most days in it, because that is the honest answer to "which
+     * one did I actually write in"; ties go to the older folder. A day that exists in two books is
+     * not merged - a day is one page - so the loser's copy is moved aside under a name that is not a
+     * date: it stays on disk, still travels inside a backup, and is never silently overwritten.
+     * Plans travel with the book they were written in, skipping any id already present.
+     */
+    private fun collapse(): String? {
+        val live = books()
+        if (live.isEmpty()) return null
+        if (live.size == 1) return live.first().name
+        val keep = live.maxWithOrNull(
+            compareBy<File> { daysOf(it).size }.thenByDescending { it.name }
+        ) ?: return null
+        val kept = meta(keep)
+        val plans = kept.optJSONArray(PLANS) ?: JSONArray()
+        val ids = (0 until plans.length()).mapNotNull {
+            runCatching { plans.getJSONObject(it).optString("id") }.getOrNull()
+        }.toMutableSet()
+
+        live.filter { it != keep }.forEach { book ->
+            daysOf(book).forEach { bookDay ->
+                val target = File(keep, bookDay.name)
+                if (!target.exists()) {
+                    if (!bookDay.renameTo(target)) bookDay.copyRecursively(target, overwrite = false)
+                } else {
+                    val aside = File(keep, "$ASIDE-${book.name}-${bookDay.name}")
+                    aside.deleteRecursively()
+                    if (!bookDay.renameTo(aside)) bookDay.copyRecursively(aside, overwrite = true)
+                }
+            }
+            runCatching { meta(book).optJSONArray(PLANS) }.getOrNull()?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    val p = runCatching { arr.getJSONObject(i) }.getOrNull() ?: continue
+                    val id = p.optString("id")
+                    if (id.isNotEmpty() && !ids.add(id)) continue
+                    plans.put(p)
+                }
+            }
+            // Nothing is deleted while it still holds something: an emptied book goes, a book with
+            // a file in it is renamed out of the shelf's naming instead, so the file survives.
+            if ((book.listFiles() ?: emptyArray()).all { it.isFile && it.name == META }) {
+                book.deleteRecursively()
+            } else {
+                book.renameTo(File(root, "$ASIDE-${book.name}"))
+            }
+        }
+        runCatching { File(keep, META).writeText(kept.put(PLANS, plans).toString()) }
+        return keep.name
     }
 
     private fun newId() = "j" + System.currentTimeMillis().toString(36)
@@ -75,38 +142,6 @@ class Store(ctx: Context) {
         File(d, META).writeText(
             JSONObject().put("name", name).put("created", LocalDate.now().toString()).toString()
         )
-    }
-
-    /** The shelf, most recently written in first; a book with no entries sorts by when it was made. */
-    fun journals(): List<Journal> = (root.listFiles() ?: emptyArray())
-        .filter { it.isDirectory && ID.matches(it.name) }
-        .map { d ->
-            val days = (d.listFiles() ?: emptyArray())
-                .filter { it.isDirectory && DATE.matches(it.name) }
-                .map { it.name }
-            val m = meta(d)
-            Journal(
-                id = d.name,
-                name = m.optString("name").ifBlank { YOUR_JOURNAL },
-                created = m.optString("created"),
-                entries = days.size,
-                last = days.maxOrNull()
-            )
-        }
-        .sortedWith(compareByDescending<Journal> { it.last ?: it.created })
-
-    fun create(name: String): String {
-        val id = newId()
-        writeMeta(id, name.trim().ifBlank { YOUR_JOURNAL }.take(60))
-        open = id
-        return id
-    }
-
-    /** Open one of the shelf's books. False when the id is not on this phone. */
-    fun open(id: String): Boolean {
-        if (!ID.matches(id) || !File(root, id).isDirectory) return false
-        open = id
-        return true
     }
 
     fun name(id: String = current): String =
@@ -286,6 +321,9 @@ class Store(ctx: Context) {
 
         /** The key plans are kept under in journal.json, beside the name. */
         const val PLANS = "plans"
+
+        /** A book or day put out of the way by [collapse]; never a date, so it is never drawn. */
+        private const val ASIDE = "merged"
 
         /** What the first book is called before anyone names it: theirs, not the app's. */
         const val YOUR_JOURNAL = "Your Journal"

@@ -233,7 +233,8 @@ internal object Siblings {
         "famtm" to "https://play.google.com/store/apps/details?id=com.FamTM.app",
         "myhub" to "https://play.google.com/store/apps/details?id=com.myhub.app",
         "sidecut" to "https://play.google.com/store/apps/details?id=com.SideCut.myapp",
-        "compass" to "https://play.google.com/store/apps/details?id=com.CompassEDC.myapp"
+        // The package still carries its original Compass-EDC name; the app itself is MeasureT.
+        "measuret" to "https://play.google.com/store/apps/details?id=com.CompassEDC.myapp"
     )
 
     fun url(id: String): String? = APPS.firstOrNull { it.first == id }?.second

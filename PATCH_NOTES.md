@@ -7,6 +7,13 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.8.1 — November 5, 2026
+
+**MeasureT, called by its name**
+
+- **The app list no longer says Compass EDC.** The fourth app there is **MeasureT** — elevation, location, the level, the converter and currency — and tapping it still opens the same listing, because the package keeps its original name.
+- Nothing else changed: the birthdays from FamTM, the Plans tab without the Support card and the over-the-air updates are exactly as they were in 1.8.0.
+
 ## 1.8.0 — November 5, 2026
 
 **Birthdays from FamTM, marked every year on the calendar**

@@ -17,7 +17,14 @@ import java.net.URL
  * release published - the screen itself, which this shell can take without Play and without an
  * installer.
  */
-data class Update(val version: String, val url: String, val notes: String, val page: String?)
+data class Update(
+    val version: String,
+    val url: String,
+    val notes: String,
+    val page: String?,
+    /** What the page this release published calls itself; the shell's version is a second clock. */
+    val pageVersion: String? = null
+)
 
 /**
  * OTA updates, in two halves now.
@@ -95,26 +102,36 @@ object Updater {
         null
     }
 
-    /** {"version","apk","size","notes","page_url"} - the manifest every app here publishes. */
+    /** {"version","apk","size","notes","page_url","page_version"} - the manifest every app publishes. */
     private fun fromManifest(text: String): Update? = try {
         val j = JSONObject(text)
         val v = j.optString("version").removePrefix("v")
-        val apk = j.optString("apk")
-        when {
-            v.isEmpty() || apk.isEmpty() -> {
-                Log.w(TAG, "the manifest names no version or no APK")
-                null
-            }
-            !newer(v, BuildConfig.VERSION_NAME) -> null
-            else -> {
-                val notes = j.optJSONArray("notes")?.let { a ->
-                    (0 until a.length()).joinToString("\n") { a.optString(it) }
-                } ?: ""
-                // The screen a release published, pinned to its tag, so a page is always the page
-                // that shipped with the version it claims - not whatever is on the branch today.
-                val page = j.optString("page_url").takeIf { it.startsWith("https://") }
-                Update(v, "${downloads()}/v$v/$apk", notes, page)
-            }
+        if (v.isEmpty()) {
+            Log.w(TAG, "the manifest names no version")
+            null
+        } else {
+            val apk = j.optString("apk")
+            val notes = j.optJSONArray("notes")?.let { a ->
+                (0 until a.length()).joinToString("\n") { a.optString(it) }
+            } ?: ""
+            // The screen a release published, pinned to its tag, so a page is always the page that
+            // shipped with the version it claims - not whatever is on the branch today.
+            val page = j.optString("page_url").takeIf { it.startsWith("https://") }
+            // Two clocks, kept apart on purpose. A release can republish the screen without moving
+            // the shell's number, and it can move the shell without touching the screen; comparing
+            // the release's own number against the installed app dropped the first kind, which is
+            // why a page update could be published and never once arrive.
+            // The screen's own name for itself. The release manifest already carries it as "page";
+            // page_version is read as well, so a manifest that names it explicitly wins.
+            val pageVersion = (j.optString("page_version").ifEmpty { j.optString("page") })
+                .removePrefix("v").takeIf { it.isNotEmpty() }
+            Update(
+                version = v,
+                url = if (apk.isEmpty()) "" else "${downloads()}/v$v/$apk",
+                notes = notes,
+                page = page,
+                pageVersion = pageVersion
+            )
         }
     } catch (e: Exception) {
         Log.w(TAG, "unreadable manifest: ${e.javaClass.simpleName}")

@@ -135,7 +135,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.7.0";
+const JOURNAL_PAGE = "1.8.0";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -382,7 +382,33 @@ const JOURNAL_PAGE = "1.7.0";
         past.forEach(function (p) { h += planRow(p); });
       }
     }
-    $("view").innerHTML = h + othersCard() + supportCard();
+    $("view").innerHTML = h + famtmCard() + othersCard();
+  }
+
+  // ---- birthdays from FamTM ----
+
+  // FamTM keeps the birthday of everyone alive in the family, and hands that list over through a
+  // read-only provider. The journal asks for it only when FamTM is installed, and only the name and
+  // the day come across: they become birthday plans, which the calendar already marks in every year
+  // without needing a date of their own.
+  function famtmPending() {
+    var n = parseInt(call("famtmBirthdays"), 10);
+    return isNaN(n) || n < 0 ? 0 : n;
+  }
+
+  function famtmCard() {
+    var n = famtmPending();
+    if (!n) return "";
+    return '<div class="support" data-famtm="1"><div><div class="s1">Birthdays from FamTM</div>' +
+      '<div class="s2">' + n + (n === 1 ? " birthday" : " birthdays") +
+      ' ready to come across, marked every year.</div></div><div class="h">🎂</div></div>';
+  }
+
+  function importFam() {
+    var added = parseInt(call("importFamTmBirthdays"), 10);
+    refresh();
+    if (!(added > 0)) { say("Nothing new to bring across"); return; }
+    say(added === 1 ? "One birthday added" : added + " birthdays added");
   }
 
   // One sheet for both kinds: the kind picks which fields matter, and a birthday only ever has a day.
@@ -718,6 +744,7 @@ const JOURNAL_PAGE = "1.7.0";
   $("view").addEventListener("click", function (ev) {
     if (ev.target.closest("[data-tip]")) { showTips(); return; }
     if (ev.target.closest("[data-apps]")) { showOthers(); return; }
+    if (ev.target.closest("[data-famtm]")) { importFam(); return; }
     var np = ev.target.closest("[data-plan-new]");
     if (np) { var at = np.getAttribute("data-plan-new"); showPlan(null, at && at !== "1" ? at : today()); return; }
     var pr = ev.target.closest("[data-plan]");

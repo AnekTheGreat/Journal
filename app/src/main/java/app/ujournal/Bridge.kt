@@ -141,6 +141,37 @@ class Bridge(private val ui: MainActivity) {
     @JavascriptInterface
     fun restore() = main { ui.importAll() }
 
+    /**
+     * How many birthdays FamTM is holding that this journal does not have yet, or -1 when FamTM is
+     * not installed or publishes none. Names and days only: that is all the provider hands over.
+     */
+    @JavascriptInterface
+    fun famtmBirthdays(): Int = runCatching {
+        val list = FamTm.birthdays(ui) ?: return@runCatching -1
+        val have = birthdays()
+        list.count { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
+    }.getOrDefault(-1)
+
+    /** Bring them across as birthday plans; returns how many were actually added. */
+    @JavascriptInterface
+    fun importFamTmBirthdays(): Int = runCatching {
+        val list = FamTm.birthdays(ui) ?: return@runCatching 0
+        val have = birthdays()
+        var added = 0
+        list.filter { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
+            .forEach { b ->
+                store.savePlan(Plan("", b.name, b.date, "", b.date, "", "birthday", FROM_FAMTM))
+                added++
+            }
+        added
+    }.getOrDefault(0)
+
+    /** Every birthday already in the plans, as name|MM-DD, which is what a birthday repeats on. */
+    private fun birthdays(): Set<String> = store.plans()
+        .filter { it.kind == "birthday" }
+        .map { it.title.lowercase() + "|" + it.start.takeLast(5) }
+        .toSet()
+
     @JavascriptInterface
     fun checkUpdates() = main { ui.checkUpdates(silent = false) }
 
@@ -149,6 +180,11 @@ class Bridge(private val ui: MainActivity) {
 
     @JavascriptInterface
     fun openRelease(version: String) = main { ui.openRelease(version) }
+
+    private companion object {
+        /** Where an imported birthday says it came from, so one is recognisable in the plans list. */
+        const val FROM_FAMTM = "From FamTM"
+    }
 
     private fun planJson(p: Plan): String = JSONObject()
         .put("id", p.id)

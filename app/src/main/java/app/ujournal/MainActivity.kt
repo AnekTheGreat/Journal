@@ -554,21 +554,37 @@ class MainActivity : Activity() {
 
     private fun offered(update: Update?, silent: Boolean) {
         val page = PageStore.running(this)
+        // The screen has its own clock: what the release says its page is, against the page being
+        // drawn. A release that only changes wording moves this one, and that is the kind that must
+        // arrive without an install.
+        val pv = update?.pageVersion
         val pageUrl = update?.page
-        if (update != null && pageUrl != null && Updater.newer(update.version, page)) {
+        if (pageUrl != null && pv != null && Updater.newer(pv, page)) {
             // A screen is a file, not an install: there is nothing to consent to and nothing the
             // phone has to ask, so it is taken as soon as it is found. Waiting to be tapped is most
             // of why an update used to feel slow - the app had found it and then stood still.
-            takePage(pageUrl, update.version)
+            takePage(pageUrl, pv)
             return
         }
-        if (update != null && !Updater.fromPlay(this) &&
-            Updater.newer(update.version, BuildConfig.VERSION_NAME)
-        ) {
-            eval("JR&&JR.update(" + offer(update, "app") + ")")
+        // The shell is the other clock, and it is offered once: a release that changed the app is
+        // not new information on the next launch, so tapping Later is not undone by reopening.
+        val u = update
+        val appNewer = u != null && u.url.isNotEmpty() && !Updater.fromPlay(this) &&
+            Updater.newer(u.version, BuildConfig.VERSION_NAME)
+        if (appNewer && (!silent || !offeredBefore(u!!.version))) {
+            remember(u!!.version)
+            eval("JR&&JR.update(" + offer(u, "app") + ")")
             return
         }
         if (!silent) eval("JR&&JR.toast(" + JSONObject.quote("UJournal $page is the newest there is") + ")")
+    }
+
+    /** Whether this app release has already been put in front of the reader. */
+    private fun offeredBefore(version: String): Boolean =
+        getSharedPreferences(UPDATES, MODE_PRIVATE).getString(OFFERED, "") == "app:$version"
+
+    private fun remember(version: String) {
+        getSharedPreferences(UPDATES, MODE_PRIVATE).edit().putString(OFFERED, "app:$version").apply()
     }
 
     /** What the update sheet is given: what changed, and where the new page or release comes from. */
@@ -685,5 +701,8 @@ class MainActivity : Activity() {
         const val MANIFEST = "ujournal-backup.json"
         /** A shelf large enough to need more than this is not one this app wrote. */
         const val MAX_RESTORE = 512L * 1024 * 1024
+        /** Where an app offer already seen is remembered, so a launch cannot repeat it. */
+        const val UPDATES = "updates"
+        const val OFFERED = "offered"
     }
 }

@@ -6,6 +6,18 @@ an AAB for Play Console, made by
 releases, so a release is also the update every installed copy is offered.
 
 
+
+## 1.8.0 — November 5, 2026
+
+**Birthdays from FamTM, marked every year on the calendar**
+
+- **The birthdays come across from FamTM.** When FamTM is installed and has birthdays, the Plans tab offers them: one tap brings over the name and the day for everyone alive, and from then on each one is marked on the calendar every year without being entered again.
+- **They arrive as ordinary birthday plans**, so one can be renamed, moved or deleted like any other, and a birthday already in the journal is never added twice.
+- **Only the name and the day travel.** FamTM hands over the same short list its own reminders keep — no photos, no notes — and the journal only ever reads it, so nothing in FamTM can be changed from here.
+- **The Support card is gone from Plans.** That tab is about what is coming up: the new-plan button, the days ahead, and the birthdays. The tip jar is still on the journal screen.
+- **Updates arrive on their own.** A new screen is now compared with the screen this copy is drawing rather than with the app's version number, so a release that only changes wording installs itself the next time the journal is opened — even when the app number has not moved at all.
+- **An app update is offered once.** Tapping Later is no longer undone by the next launch; ⟳ asks again whenever it is pressed.
+
 ## 1.7.0 - one journal, opened straight away
 
 ### Removed

@@ -1,0 +1,276 @@
+diff --git a/PATCH_NOTES.md b/PATCH_NOTES.md
+index 5d4de52..04b3810 100644
+--- a/PATCH_NOTES.md
++++ b/PATCH_NOTES.md
+@@ -8,0 +9,12 @@ releases, so a release is also the update every installed copy is offered.
++
++## 1.8.0 — November 5, 2026
++
++**Birthdays from FamTM, marked every year on the calendar**
++
++- **The birthdays come across from FamTM.** When FamTM is installed and has birthdays, the Plans tab offers them: one tap brings over the name and the day for everyone alive, and from then on each one is marked on the calendar every year without being entered again.
++- **They arrive as ordinary birthday plans**, so one can be renamed, moved or deleted like any other, and a birthday already in the journal is never added twice.
++- **Only the name and the day travel.** FamTM hands over the same short list its own reminders keep — no photos, no notes — and the journal only ever reads it, so nothing in FamTM can be changed from here.
++- **The Support card is gone from Plans.** That tab is about what is coming up: the new-plan button, the days ahead, and the birthdays. The tip jar is still on the journal screen.
++- **Updates arrive on their own.** A new screen is now compared with the screen this copy is drawing rather than with the app's version number, so a release that only changes wording installs itself the next time the journal is opened — even when the app number has not moved at all.
++- **An app update is offered once.** Tapping Later is no longer undone by the next launch; ⟳ asks again whenever it is pressed.
++
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 8898cf6..7223c93 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -34 +34 @@ android {
+-        versionName = "1.7.0"
++        versionName = "1.8.0"
+diff --git a/app/src/main/assets/index.html b/app/src/main/assets/index.html
+index ba7d9a1..6f64342 100644
+--- a/app/src/main/assets/index.html
++++ b/app/src/main/assets/index.html
+@@ -138 +138 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
+-const JOURNAL_PAGE = "1.7.0";
++const JOURNAL_PAGE = "1.8.0";
+@@ -385 +385,27 @@ const JOURNAL_PAGE = "1.7.0";
+-    $("view").innerHTML = h + othersCard() + supportCard();
++    $("view").innerHTML = h + famtmCard() + othersCard();
++  }
++
++  // ---- birthdays from FamTM ----
++
++  // FamTM keeps the birthday of everyone alive in the family, and hands that list over through a
++  // read-only provider. The journal asks for it only when FamTM is installed, and only the name and
++  // the day come across: they become birthday plans, which the calendar already marks in every year
++  // without needing a date of their own.
++  function famtmPending() {
++    var n = parseInt(call("famtmBirthdays"), 10);
++    return isNaN(n) || n < 0 ? 0 : n;
++  }
++
++  function famtmCard() {
++    var n = famtmPending();
++    if (!n) return "";
++    return '<div class="support" data-famtm="1"><div><div class="s1">Birthdays from FamTM</div>' +
++      '<div class="s2">' + n + (n === 1 ? " birthday" : " birthdays") +
++      ' ready to come across, marked every year.</div></div><div class="h">🎂</div></div>';
++  }
++
++  function importFam() {
++    var added = parseInt(call("importFamTmBirthdays"), 10);
++    refresh();
++    if (!(added > 0)) { say("Nothing new to bring across"); return; }
++    say(added === 1 ? "One birthday added" : added + " birthdays added");
+@@ -720,0 +747 @@ const JOURNAL_PAGE = "1.7.0";
++    if (ev.target.closest("[data-famtm]")) { importFam(); return; }
+diff --git a/app/src/main/java/app/ujournal/Bridge.kt b/app/src/main/java/app/ujournal/Bridge.kt
+index 63219a6..2e02e53 100644
+--- a/app/src/main/java/app/ujournal/Bridge.kt
++++ b/app/src/main/java/app/ujournal/Bridge.kt
+@@ -143,0 +144,31 @@ class Bridge(private val ui: MainActivity) {
++    /**
++     * How many birthdays FamTM is holding that this journal does not have yet, or -1 when FamTM is
++     * not installed or publishes none. Names and days only: that is all the provider hands over.
++     */
++    @JavascriptInterface
++    fun famtmBirthdays(): Int = runCatching {
++        val list = FamTm.birthdays(ui) ?: return@runCatching -1
++        val have = birthdays()
++        list.count { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
++    }.getOrDefault(-1)
++
++    /** Bring them across as birthday plans; returns how many were actually added. */
++    @JavascriptInterface
++    fun importFamTmBirthdays(): Int = runCatching {
++        val list = FamTm.birthdays(ui) ?: return@runCatching 0
++        val have = birthdays()
++        var added = 0
++        list.filter { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
++            .forEach { b ->
++                store.savePlan(Plan("", b.name, b.date, "", b.date, "", "birthday", FROM_FAMTM))
++                added++
++            }
++        added
++    }.getOrDefault(0)
++
++    /** Every birthday already in the plans, as name|MM-DD, which is what a birthday repeats on. */
++    private fun birthdays(): Set<String> = store.plans()
++        .filter { it.kind == "birthday" }
++        .map { it.title.lowercase() + "|" + it.start.takeLast(5) }
++        .toSet()
++
+@@ -152,0 +184,5 @@ class Bridge(private val ui: MainActivity) {
++    private companion object {
++        /** Where an imported birthday says it came from, so one is recognisable in the plans list. */
++        const val FROM_FAMTM = "From FamTM"
++    }
++
+diff --git a/app/src/main/java/app/ujournal/FamTm.kt b/app/src/main/java/app/ujournal/FamTm.kt
+new file mode 100644
+index 0000000..54659e9
+--- /dev/null
++++ b/app/src/main/java/app/ujournal/FamTm.kt
+@@ -0,0 +1,65 @@
++package app.ujournal
++
++import android.content.Context
++import android.net.Uri
++import org.json.JSONArray
++
++/**
++ * The birthdays FamTM keeps for the family, read through the read-only provider it publishes at
++ * `content://com.FamTM.app.birthdays/list`.
++ *
++ * FamTM hands over exactly the list its own birthday reminders use - a name, a month and a day for
++ * each living person, plus the year when one was given - and nothing else: no photos, no notes, no
++ * addresses. The provider answers a query and refuses every write, so this is a one-way read of a
++ * short list, not a way to reach the family.
++ *
++ * Everything here fails quietly. FamTM may not be installed, may be an older copy with no provider,
++ * or may have nobody with a birthday recorded; in each case the journal simply has no birthdays to
++ * offer, which is the same thing the reader sees.
++ */
++internal object FamTm {
++
++    /** One person's birthday: the day it repeats on, and the year when one was recorded. */
++    class Birthday(val name: String, val month: Int, val day: Int, val year: Int) {
++
++        /** MM-DD: the part of a birthday that comes round every year. */
++        val md: String =
++            (if (month < 10) "0" else "") + month + "-" + (if (day < 10) "0" else "") + day
++
++        /**
++         * A date the plans table accepts. The year does not matter to a birthday - the page matches
++         * on the month and the day - but a year FamTM knows is kept as it is.
++         */
++        val date: String = (if (year in 1..9999) year else 2000).toString() + "-" + md
++    }
++
++    private val URI: Uri = Uri.parse("content://com.FamTM.app.birthdays/list")
++
++    /** Whether FamTM answers at all, so a caller can tell "none" from "not here". */
++    fun installed(ctx: Context): Boolean = try {
++        ctx.contentResolver.query(URI, null, null, null, null)?.use { true } ?: false
++    } catch (e: Exception) {
++        false
++    }
++
++    /** The list FamTM publishes, or null when it is not installed, has no provider, or has none. */
++    fun birthdays(ctx: Context): List<Birthday>? = try {
++        val c = ctx.contentResolver.query(URI, null, null, null, null) ?: return null
++        c.use { cur ->
++            if (!cur.moveToFirst()) return null
++            val i = cur.getColumnIndex("json")
++            if (i < 0) return null
++            val arr = JSONArray(cur.getString(i))
++            (0 until arr.length()).mapNotNull { k ->
++                val o = arr.optJSONObject(k) ?: return@mapNotNull null
++                val name = o.optString("n").trim().take(80)
++                val m = o.optInt("m")
++                val d = o.optInt("d")
++                if (name.isEmpty() || m !in 1..12 || d !in 1..31) null
++                else Birthday(name, m, d, o.optInt("y"))
++            }
++        }
++    } catch (e: Exception) {
++        null
++    }
++}
+diff --git a/app/src/main/java/app/ujournal/MainActivity.kt b/app/src/main/java/app/ujournal/MainActivity.kt
+index 5c43029..41ef17e 100644
+--- a/app/src/main/java/app/ujournal/MainActivity.kt
++++ b/app/src/main/java/app/ujournal/MainActivity.kt
+@@ -556,0 +557,4 @@ class MainActivity : Activity() {
++        // The screen has its own clock: what the release says its page is, against the page being
++        // drawn. A release that only changes wording moves this one, and that is the kind that must
++        // arrive without an install.
++        val pv = update?.pageVersion
+@@ -558 +562 @@ class MainActivity : Activity() {
+-        if (update != null && pageUrl != null && Updater.newer(update.version, page)) {
++        if (pageUrl != null && pv != null && Updater.newer(pv, page)) {
+@@ -562 +566 @@ class MainActivity : Activity() {
+-            takePage(pageUrl, update.version)
++            takePage(pageUrl, pv)
+@@ -565,4 +569,8 @@ class MainActivity : Activity() {
+-        if (update != null && !Updater.fromPlay(this) &&
+-            Updater.newer(update.version, BuildConfig.VERSION_NAME)
+-        ) {
+-            eval("JR&&JR.update(" + offer(update, "app") + ")")
++        // The shell is the other clock, and it is offered once: a release that changed the app is
++        // not new information on the next launch, so tapping Later is not undone by reopening.
++        val u = update
++        val appNewer = u != null && u.url.isNotEmpty() && !Updater.fromPlay(this) &&
++            Updater.newer(u.version, BuildConfig.VERSION_NAME)
++        if (appNewer && (!silent || !offeredBefore(u!!.version))) {
++            remember(u!!.version)
++            eval("JR&&JR.update(" + offer(u, "app") + ")")
+@@ -573,0 +582,8 @@ class MainActivity : Activity() {
++    /** Whether this app release has already been put in front of the reader. */
++    private fun offeredBefore(version: String): Boolean =
++        getSharedPreferences(UPDATES, MODE_PRIVATE).getString(OFFERED, "") == "app:$version"
++
++    private fun remember(version: String) {
++        getSharedPreferences(UPDATES, MODE_PRIVATE).edit().putString(OFFERED, "app:$version").apply()
++    }
++
+@@ -687,0 +704,3 @@ class MainActivity : Activity() {
++        /** Where an app offer already seen is remembered, so a launch cannot repeat it. */
++        const val UPDATES = "updates"
++        const val OFFERED = "offered"
+diff --git a/app/src/main/java/app/ujournal/Updater.kt b/app/src/main/java/app/ujournal/Updater.kt
+index 5a46d35..ccd2694 100644
+--- a/app/src/main/java/app/ujournal/Updater.kt
++++ b/app/src/main/java/app/ujournal/Updater.kt
+@@ -20 +20,8 @@ import java.net.URL
+-data class Update(val version: String, val url: String, val notes: String, val page: String?)
++data class Update(
++    val version: String,
++    val url: String,
++    val notes: String,
++    val page: String?,
++    /** What the page this release published calls itself; the shell's version is a second clock. */
++    val pageVersion: String? = null
++)
+@@ -98 +105 @@ object Updater {
+-    /** {"version","apk","size","notes","page_url"} - the manifest every app here publishes. */
++    /** {"version","apk","size","notes","page_url","page_version"} - the manifest every app publishes. */
+@@ -102,16 +109,26 @@ object Updater {
+-        val apk = j.optString("apk")
+-        when {
+-            v.isEmpty() || apk.isEmpty() -> {
+-                Log.w(TAG, "the manifest names no version or no APK")
+-                null
+-            }
+-            !newer(v, BuildConfig.VERSION_NAME) -> null
+-            else -> {
+-                val notes = j.optJSONArray("notes")?.let { a ->
+-                    (0 until a.length()).joinToString("\n") { a.optString(it) }
+-                } ?: ""
+-                // The screen a release published, pinned to its tag, so a page is always the page
+-                // that shipped with the version it claims - not whatever is on the branch today.
+-                val page = j.optString("page_url").takeIf { it.startsWith("https://") }
+-                Update(v, "${downloads()}/v$v/$apk", notes, page)
+-            }
++        if (v.isEmpty()) {
++            Log.w(TAG, "the manifest names no version")
++            null
++        } else {
++            val apk = j.optString("apk")
++            val notes = j.optJSONArray("notes")?.let { a ->
++                (0 until a.length()).joinToString("\n") { a.optString(it) }
++            } ?: ""
++            // The screen a release published, pinned to its tag, so a page is always the page that
++            // shipped with the version it claims - not whatever is on the branch today.
++            val page = j.optString("page_url").takeIf { it.startsWith("https://") }
++            // Two clocks, kept apart on purpose. A release can republish the screen without moving
++            // the shell's number, and it can move the shell without touching the screen; comparing
++            // the release's own number against the installed app dropped the first kind, which is
++            // why a page update could be published and never once arrive.
++            // The screen's own name for itself. The release manifest already carries it as "page";
++            // page_version is read as well, so a manifest that names it explicitly wins.
++            val pageVersion = (j.optString("page_version").ifEmpty { j.optString("page") })
++                .removePrefix("v").takeIf { it.isNotEmpty() }
++            Update(
++                version = v,
++                url = if (apk.isEmpty()) "" else "${downloads()}/v$v/$apk",
++                notes = notes,
++                page = page,
++                pageVersion = pageVersion
++            )

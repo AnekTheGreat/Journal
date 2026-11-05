@@ -1,0 +1,28 @@
+name: Apply ship patch
+
+# One-shot: applies dev/ship.patch, commits it and pushes. Deleted once it has run.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply, commit and push
+        run: |
+          set -e
+          git config user.name "AnekTheGreat"
+          git config user.email "166177289+AnekTheGreat@users.noreply.github.com"
+          # Zero-context diff: --unidiff-zero is required, and --recount must NOT be used (it
+          # re-reads a new-file hunk against the old file and refuses it). A blank line after the
+          # last hunk counts as an extra line, so the file is trimmed first.
+          python3 -c 'p="dev/ship.patch"; s=open(p,encoding="utf-8").read().rstrip("\n")+"\n"; open(p,"w",encoding="utf-8").write(s)'
+          git apply --unidiff-zero --whitespace=nowarn dev/ship.patch
+          rm -f dev/ship.patch
+          git add -A
+          git commit -m "UJournal 1.8.1: call MeasureT by its name"
+          git push origin HEAD:main

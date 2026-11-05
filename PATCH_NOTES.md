@@ -7,6 +7,15 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.0 — November 5, 2026
+
+**Birthdays from FamTM are one button, and a new screen says what changed**
+
+- **One button, not a card.** The Plans tab used to end with a card *about* the birthdays FamTM was holding; it is now a single button under **New plan** — *Add N birthdays from FamTM* — and that button is the whole of the feature.
+- **What's New, in the screen's own words.** The first time a new screen runs, a popup lists what changed in it, with the version marked read when the popup is closed — its own button, the backdrop, or the phone's back — and not when it is built. It appears once per screen version.
+- **The notes travel inside the screen.** Nothing is fetched to read them: a screen that arrives over the air brings its own account of what changed.
+- **Nothing else changed.** The button and the popup are both in the page, so this release is taken over the air: a copy on 1.8.1 installs nothing to get either.
+
 ## 1.8.1 — November 5, 2026
 
 **MeasureT, called by its name**

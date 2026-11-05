@@ -52,6 +52,10 @@ nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;ma
 .support .s1{font-family:Georgia,serif;font-size:16px}
 .support .s2{color:var(--muted);font-size:12px;margin-top:3px}
 .support .h{color:var(--tan);font-size:20px;margin-left:auto}
+.fambtn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--sand);border-radius:20px;padding:14px 16px;margin:0 0 18px;color:var(--ink);font-family:inherit}
+.fambtn .fc{font-size:22px;line-height:1}
+.fambtn b{display:block;font-family:Georgia,serif;font-size:16px;font-weight:400}
+.fambtn i{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:3px}
 .plans{margin:2px 0 10px}
 .plan{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;padding:12px 14px;margin-bottom:8px}
 .plan.today{border:1px solid var(--tan)}
@@ -135,12 +139,12 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.8.1";
+const JOURNAL_PAGE = "1.9.0";
 (function () {
   "use strict";
   var G = window.Journal || null;
   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  var S = { tab: 0, name: "", entries: [], plans: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
+  var S = { tab: 0, name: "", entries: [], plans: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null, wn: 0 };
 
   function $(id) { return document.getElementById(id); }
   function parse(t, d) { try { return t ? JSON.parse(t) : d; } catch (e) { return d; } }
@@ -172,6 +176,8 @@ const JOURNAL_PAGE = "1.8.1";
     $("fab").classList.remove("hide");
     $("fab").style.display = "block";
     refresh();
+    // A new screen says what changed in it - once, and only after it has been read.
+    if (wnSeen() !== JOURNAL_PAGE) showWhatsNew();
   }
 
   function pickTab(n) {
@@ -361,7 +367,8 @@ const JOURNAL_PAGE = "1.8.1";
 
     var h = '<div class="hello">Plans</div>';
     h += '<button class="newj" data-plan-new="1"><span class="plus">＋</span><span>' +
-      '<b>New plan</b><i>An hour, a few days away, or a birthday</i></span></button>';
+      '<b>New plan</b><i>An hour, a few days away, or a birthday</i></span></button>' +
+      famtmButton();
     if (!all.length) {
       h += '<div class="empty">Nothing planned yet.<br>A dinner, a trip, a birthday &mdash; it can all live here.</div>';
     } else {
@@ -382,7 +389,7 @@ const JOURNAL_PAGE = "1.8.1";
         past.forEach(function (p) { h += planRow(p); });
       }
     }
-    $("view").innerHTML = h + famtmCard() + othersCard();
+    $("view").innerHTML = h + othersCard();
   }
 
   // ---- birthdays from FamTM ----
@@ -396,12 +403,14 @@ const JOURNAL_PAGE = "1.8.1";
     return isNaN(n) || n < 0 ? 0 : n;
   }
 
-  function famtmCard() {
+  // One button, and nothing else: FamTM either has birthdays this journal has not seen yet, or it
+  // has nothing to offer and the button is not there at all. A tap is the whole of the feature.
+  function famtmButton() {
     var n = famtmPending();
     if (!n) return "";
-    return '<div class="support" data-famtm="1"><div><div class="s1">Birthdays from FamTM</div>' +
-      '<div class="s2">' + n + (n === 1 ? " birthday" : " birthdays") +
-      ' ready to come across, marked every year.</div></div><div class="h">🎂</div></div>';
+    return '<button class="fambtn" data-famtm="1"><span class="fc">🎂</span><span>' +
+      '<b>' + (n === 1 ? "Add the birthday from FamTM" : "Add " + n + " birthdays from FamTM") + '</b>' +
+      '<i>Everyone alive in the family, marked every year</i></span></button>';
   }
 
   function importFam() {
@@ -409,6 +418,50 @@ const JOURNAL_PAGE = "1.8.1";
     refresh();
     if (!(added > 0)) { say("Nothing new to bring across"); return; }
     say(added === 1 ? "One birthday added" : added + " birthdays added");
+  }
+
+  // ---- what's new ----
+
+  // The notes for this screen travel inside the screen: a screen that arrives over the air brings
+  // its own account of what changed, so nothing has to be fetched to read it. One entry per screen
+  // version, and the version whose notes have been shown is kept on the phone - marked when the
+  // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
+  // marked read without having been put in front of the reader.
+  var WN = {
+    "1.9.0": {
+      date: "5 November 2026",
+      title: "Birthdays from FamTM, one button in Plans",
+      notes: [
+        "The birthdays come across from FamTM. With FamTM installed, the Plans tab carries one button that brings over the name and the day of everyone alive in the family, and marks each one on the calendar every year without being typed in again.",
+        "They arrive as ordinary birthday plans, so one can be renamed, moved or deleted like any other, and a birthday already in the journal is never added twice.",
+        "Only the name and the day travel. FamTM hands over the same short list its own reminders keep - no photos, no notes - and the journal only ever reads it, so nothing in FamTM can be changed from here.",
+        "This popup arrives with the screen rather than the app: a release that only changes what the journal says is taken the next time it is opened, with nothing installed.",
+        "It is shown once per screen version, and marked read when it is closed, so it is not in the way on every launch."
+      ]
+    }
+  };
+
+  function wnSeen() { try { return localStorage.getItem("ujournal.wn") || ""; } catch (e) { return ""; } }
+  function wnMark() { try { localStorage.setItem("ujournal.wn", JOURNAL_PAGE); } catch (e) { } }
+
+  function showWhatsNew() {
+    var u = WN[JOURNAL_PAGE];
+    if (!u) return;
+    var notes = (u.notes || []).map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("");
+    $("sheet-card").innerHTML = '<h2>What&rsquo;s New</h2>' +
+      '<p>UJournal ' + esc(JOURNAL_PAGE) + ' &middot; ' + esc(u.date) + '<br>' + esc(u.title) + '</p>' +
+      (notes ? '<ul>' + notes + '</ul>' : "") +
+      '<div class="row"><button id="wnok" class="go">Got it</button></div>';
+    S.wn = 1;
+    $("sheet").classList.remove("hide");
+    $("wnok").onclick = function () { closeWhatsNew(); };
+  }
+
+  function closeWhatsNew() {
+    if (!S.wn) return;
+    S.wn = 0;
+    wnMark();
+    $("sheet").classList.add("hide");
   }
 
   // One sheet for both kinds: the kind picks which fields matter, and a birthday only ever has a day.
@@ -704,7 +757,11 @@ const JOURNAL_PAGE = "1.8.1";
   }
 
   $("sheet").addEventListener("click", function (ev) {
-    if (ev.target === $("sheet")) $("sheet").classList.add("hide");
+    if (ev.target !== $("sheet")) return;
+    // Tapping the backdrop of What's New closes it the same way its own button does, so the
+    // notes are marked read whichever way the popup is dismissed.
+    if (S.wn) { closeWhatsNew(); return; }
+    $("sheet").classList.add("hide");
   });
 
   function showTips() {
@@ -765,6 +822,7 @@ const JOURNAL_PAGE = "1.8.1";
 
   // The shell asks this before it closes: true means the page handled the back itself.
   window.journalBack = function () {
+    if (S.wn) { closeWhatsNew(); return true; }
     if (!$("menu").classList.contains("hide")) { $("menu").classList.add("hide"); return true; }
     if (!$("sheet").classList.contains("hide")) { $("sheet").classList.add("hide"); return true; }
     if (S.rec) { stopRec(false); return true; }

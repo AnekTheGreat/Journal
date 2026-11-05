@@ -1,0 +1,578 @@
+diff --git a/PATCH_NOTES.md b/PATCH_NOTES.md
+index ae82c5c..5d4de52 100644
+--- a/PATCH_NOTES.md
++++ b/PATCH_NOTES.md
+@@ -5,6 +5,16 @@ an AAB for Play Console, made by
+ [release.yml](.github/workflows/release.yml) on a `v*` tag. The app's own updater reads those
+ releases, so a release is also the update every installed copy is offered.
+ 
++
++## 1.7.0 - one journal, opened straight away
++
++### Removed
++- **The shelf.** "Your journals", "Start a new journal", "All journals" and the back arrow that led
++  to them are gone. UJournal is one journal now: the app opens on the timeline and the ＋ button is
++  the first thing to press. Books already on a phone are folded into one on the first launch after
++  this update - every day, every attachment and every calendar plan is kept, a day that appeared in
++  two books is put aside rather than overwritten, and a backup made before this version still
++  restores.
+ ## 1.6.3 - updates take themselves, and they take a moment instead of a minute
+ 
+ ### Changed
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 8e07ee6..8898cf6 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -31,7 +31,7 @@ android {
+         // number, which meant a build from a later run carried a higher versionCode than the
+         // release cut before it - and Android refuses such a release as a downgrade. The code is
+         // computed from the name and only ever goes up: 1.6.3 -> 10603.
+-        versionName = "1.6.3"
++        versionName = "1.7.0"
+         versionCode = versionName!!.split(".").let { p ->
+             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
+         }
+diff --git a/app/src/main/assets/index.html b/app/src/main/assets/index.html
+index b12c4f9..ba7d9a1 100644
+--- a/app/src/main/assets/index.html
++++ b/app/src/main/assets/index.html
+@@ -19,8 +19,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
+ body{display:flex;flex-direction:column}
+ header#bar{display:flex;align-items:center;gap:6px;padding:14px 16px 8px}
+ #brand{font-family:Georgia,serif;font-size:24px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+-#check,#more,#backhome{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
+-#backhome{display:none;font-size:24px;padding:4px 6px 4px 0}
++#check,#more{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
+ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 96px}
+ nav#tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--sand);padding:6px 0 8px}
+ nav#tabs button{flex:1;background:none;border:0;color:var(--muted);font-size:19px;display:flex;flex-direction:column;gap:2px;align-items:center}
+@@ -121,7 +120,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
+ </style>
+ </head>
+ <body>
+-<header id="bar"><button id="backhome" title="All journals">‹</button><div id="brand">UJournal</div><button id="more" title="Back up or move to a new device">⋯</button><button id="check" title="Check for updates">⟳</button></header>
++<header id="bar"><div id="brand">UJournal</div><button id="more" title="Back up or move to a new device">⋯</button><button id="check" title="Check for updates">⟳</button></header>
+ <main id="view"></main>
+ <nav id="tabs" class="hide"><button id="t0" class="on">📖<span>Journal</span></button><button id="t1">📅<span>Calendar</span></button><button id="t2">🎉<span>Plans</span></button></nav>
+ <button id="fab" class="hide">＋</button>
+@@ -136,12 +135,12 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
+ <div id="say" class="hide"></div>
+ 
+ <script>
+-const JOURNAL_PAGE = "1.6.3";
++const JOURNAL_PAGE = "1.7.0";
+ (function () {
+   "use strict";
+   var G = window.Journal || null;
+   var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+-  var S = { tab: 0, home: true, journals: [], name: "", entries: [], plans: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
++  var S = { tab: 0, name: "", entries: [], plans: [], day: null, ym: new Date(), saveTimer: null, rec: null, upd: null };
+ 
+   function $(id) { return document.getElementById(id); }
+   function parse(t, d) { try { return t ? JSON.parse(t) : d; } catch (e) { return d; } }
+@@ -161,124 +160,25 @@ const JOURNAL_PAGE = "1.6.3";
+     sayTimer = setTimeout(function () { el.classList.add("hide"); }, 2600);
+   }
+ 
+-  // ---- the shelf ----
++  // ---- the journal ----
+ 
+-  // What a book says about itself: how much is in it, and when it was last written in. A book with
+-  // nothing in it says so instead of showing a date it does not have.
+-  function jline(j) {
+-    var n = Number(j.entries) || 0;
+-    if (!n) return "No entries yet";
+-    return n + (n === 1 ? " entry" : " entries") + (j.last ? " · last " + day(j.last) : "");
+-  }
+-
+-  function jcard(j) {
+-    return '<div class="card" data-jid="' + esc(j.id) + '"><div class="txt">' +
+-      '<div class="jname">' + esc(j.name) + '</div>' +
+-      '<div class="bd">' + esc(jline(j)) + '</div></div><div class="chev">›</div></div>';
+-  }
+-
+-  function drawHome() {
+-    var all = S.journals || [];
+-    var recent = all.slice(0, 3);
+-    var h = '<div class="hello">Your journals</div>';
+-    h += '<button class="newj" data-new="1"><span class="plus">＋</span><span>' +
+-      '<b>Start a new journal</b><i>A book of its own, with nothing in it yet</i></span></button>';
+-    if (recent.length) {
+-      h += '<div class="month">Recent</div>';
+-      recent.forEach(function (j) { h += jcard(j); });
+-      if (all.length > recent.length) {
+-        h += '<button class="allj" data-allj="1">All ' + all.length + ' journals ›</button>';
+-      }
+-    } else {
+-      h += '<div class="empty">No journals on this phone yet.<br>Start one above.</div>';
+-    }
+-    $("view").innerHTML = h + othersCard() + supportCard();
+-  }
+-
+-  // The shelf is the Journal tab, not a place outside the app: the tabs stay under it, and so does
+-  // the button that writes, so opening UJournal never lands somewhere with nothing to press. ＋ on
+-  // the shelf is a new entry in the journal you were last in - starting a book is the card above,
+-  // and it should not be the only thing a fresh screen offers.
+-  function home() {
+-    S.home = true; S.day = null; S.tab = 0;
+-    S.journals = parse(call("journals"), []) || [];
+-    $("day").classList.add("hide");
++  // One journal, opened the moment the page starts. The shell keeps it in journals/<id>/..., and the
++  // page never asks which book it is looking at: there is nothing to pick, and nothing to name
++  // before the first word.
++  function start() {
++    S.name = call("currentJournal") || "UJournal";
++    $("brand").textContent = S.name;
+     $("tabs").classList.remove("hide");
+     $("fab").classList.remove("hide");
+     $("fab").style.display = "block";
+-    $("backhome").style.display = "none";
+-    $("brand").textContent = "UJournal";
+-    draw();
+-  }
+-
+-  // A tab picked on the shelf opens in the journal that was last open; Journal itself is the shelf,
+-  // so it never leaves it.
+-  function goCurrent() {
+-    var name = call("currentJournal");
+-    if (!name) { say("Start a journal first"); return false; }
+-    enterJournal(name);
+-    return true;
++    refresh();
+   }
+ 
+   function pickTab(n) {
+-    if (S.home && n !== 0 && !goCurrent()) return;
+     S.tab = n;
+     draw();
+   }
+ 
+-  function enterJournal(name) {
+-    S.home = false; S.name = name || "Journal";
+-    $("tabs").classList.remove("hide");
+-    $("fab").classList.remove("hide");
+-    $("fab").style.display = "block";
+-    $("backhome").style.display = "block";
+-    $("brand").textContent = S.name;
+-    S.tab = 0;
+-    refresh();
+-  }
+-
+-  function openJournal(id) {
+-    var name = call("openJournal", id);
+-    if (name) enterJournal(name); else { say("That journal is not here any more"); home(); }
+-  }
+-
+-  // A journal needs no settings: a name, and then it is a book. The name is asked for in a sheet,
+-  // because the shell has no dialog and a page should not use alert().
+-  function showNewJournal() {
+-    $("sheet-card").innerHTML =
+-      '<h2>Start a new journal</h2>' +
+-      '<p>A journal is a book of its own &mdash; its own timeline, its own calendar, its own ' +
+-      'entries. Name it something you will know it by.</p>' +
+-      '<input id="jn" class="t nm" placeholder="Your Journal" maxlength="60" autocomplete="off">' +
+-      '<div class="row"><button id="jcancel">Cancel</button>' +
+-      '<button id="jgo" class="go">Start it</button></div>';
+-    $("sheet").classList.remove("hide");
+-    $("jn").value = "";
+-    $("jn").focus();
+-    $("jcancel").onclick = function () { $("sheet").classList.add("hide"); };
+-    $("jgo").onclick = function () {
+-      var name = ($("jn").value || "").trim() || "Your Journal";
+-      $("sheet").classList.add("hide");
+-      call("create", name);
+-      enterJournal(call("currentJournal") || name);
+-    };
+-  }
+-
+-  function showAllJournals() {
+-    var h = '<h2>All journals</h2>';
+-    (S.journals || []).forEach(function (j) {
+-      h += '<button class="pick" data-jid="' + esc(j.id) + '">' + esc(j.name) +
+-        '<i>' + esc(jline(j)) + '</i></button>';
+-    });
+-    h += '<div class="row" style="padding-top:16px"><button id="jclose">Close</button></div>';
+-    $("sheet-card").innerHTML = h;
+-    $("sheet").classList.remove("hide");
+-    $("jclose").onclick = function () { $("sheet").classList.add("hide"); };
+-    $("sheet-card").querySelectorAll("[data-jid]").forEach(function (b) {
+-      b.onclick = function () { $("sheet").classList.add("hide"); openJournal(b.getAttribute("data-jid")); };
+-    });
+-  }
+-
+   // ---- the timeline ----
+ 
+   function card(e) {
+@@ -358,17 +258,15 @@ const JOURNAL_PAGE = "1.6.3";
+   }
+ 
+   function draw() {
+-    var t = S.home ? 0 : S.tab;
++    var t = S.tab;
+     $("t0").className = t === 0 ? "on" : "";
+     $("t1").className = t === 1 ? "on" : "";
+     $("t2").className = t === 2 ? "on" : "";
+-    if (S.home) { drawHome(); return; }
+     $("fab").style.display = S.day || S.tab === 2 ? "none" : "block";
+     if (S.tab === 0) drawList(); else if (S.tab === 1) drawCal(); else drawPlans();
+   }
+ 
+   function refresh(cb) {
+-    if (S.home) { home(); if (cb) cb(); return; }
+     S.entries = parse(call("entries"), []) || [];
+     S.plans = parse(call("plans"), []) || [];
+     draw();
+@@ -730,7 +628,7 @@ const JOURNAL_PAGE = "1.6.3";
+     if (save) call("recordStop", S.day); else call("recordCancel");
+   }
+ 
+-  // ---- moving the journals to another phone ----
++  // ---- moving the journal to another phone ----
+ 
+   // One file holds every journal, every entry and everything attached to it. The shell writes it
+   // where the phone's own Save dialog points, so a backup can go to Downloads, a card or a cloud
+@@ -751,7 +649,7 @@ const JOURNAL_PAGE = "1.6.3";
+     $("rs").onclick = function () {
+       if (!this.getAttribute("data-armed")) {
+         this.setAttribute("data-armed", "1");
+-        this.textContent = "Replace these journals?";
++        this.textContent = "Replace your journal?";
+         return;
+       }
+       $("sheet").classList.add("hide");
+@@ -811,27 +709,19 @@ const JOURNAL_PAGE = "1.6.3";
+   $("t0").onclick = function () { pickTab(0); };
+   $("t1").onclick = function () { pickTab(1); };
+   $("t2").onclick = function () { pickTab(2); };
+-  $("fab").onclick = function () {
+-    if (S.home && !goCurrent()) return;
+-    openDay(today());
+-  };
++  $("fab").onclick = function () { openDay(today()); };
+   $("back").onclick = function () { closeDay(); };
+   $("attach").onclick = openMenu;
+   $("more").onclick = showMove;
+-  $("backhome").onclick = home;
+   $("check").onclick = function () { say("Checking for updates…"); call("checkUpdates"); };
+ 
+   $("view").addEventListener("click", function (ev) {
+     if (ev.target.closest("[data-tip]")) { showTips(); return; }
+     if (ev.target.closest("[data-apps]")) { showOthers(); return; }
+-    if (ev.target.closest("[data-new]")) { showNewJournal(); return; }
+-    if (ev.target.closest("[data-allj]")) { showAllJournals(); return; }
+     var np = ev.target.closest("[data-plan-new]");
+     if (np) { var at = np.getAttribute("data-plan-new"); showPlan(null, at && at !== "1" ? at : today()); return; }
+     var pr = ev.target.closest("[data-plan]");
+     if (pr) { openPlanFrom(pr); return; }
+-    var j = ev.target.closest("[data-jid]");
+-    if (j) { openJournal(j.getAttribute("data-jid")); return; }
+     var c = ev.target.closest("[data-date]");
+     if (c) { openDay(c.getAttribute("data-date")); return; }
+     var y = ev.target.closest("[data-ym]");
+@@ -852,7 +742,7 @@ const JOURNAL_PAGE = "1.6.3";
+     if (!$("sheet").classList.contains("hide")) { $("sheet").classList.add("hide"); return true; }
+     if (S.rec) { stopRec(false); return true; }
+     if (S.day) { closeDay(); return true; }
+-    if (!S.home) { home(); return true; }
++    // At the top the back button belongs to Android: there is nowhere left to go inside the page.
+     return false;
+   };
+ 
+@@ -863,14 +753,14 @@ const JOURNAL_PAGE = "1.6.3";
+     toast: say
+   };
+ 
+-  window.journalResume = function () { if (S.home) home(); else refresh(); };
++  window.journalResume = function () { refresh(); };
+   // onPause asks for whatever was typed to be on disk before the phone takes the screen away.
+   window.journalFlush = saveNow;
+   // The shell asks this before it swaps in a new screen: a day open means a draft being written, and
+   // that is the only moment a page update is worth delaying.
+   window.journalEditing = function () { return !!S.day; };
+ 
+-  home();
++  start();
+   call("ready");
+ })();
+ </script>
+diff --git a/app/src/main/java/app/ujournal/Bridge.kt b/app/src/main/java/app/ujournal/Bridge.kt
+index c97736f..63219a6 100644
+--- a/app/src/main/java/app/ujournal/Bridge.kt
++++ b/app/src/main/java/app/ujournal/Bridge.kt
+@@ -11,9 +11,11 @@ import java.time.LocalDate
+ /**
+  * Everything the page is allowed to ask the phone for, and nothing more.
+  *
+- * The screen is `assets/index.html`, so the parts that cannot live in a page live here: the shelf of
+- * journals, the entries on disk, the plans in the calendar, the pickers and the recorder, the tip
+- * links, the update, and the one file a journal can be carried to a new phone in. Each method is a
++ * The screen is `assets/index.html`, so the parts that cannot live in a page live here: the journal
++ * on disk, the entries, the plans in the calendar, the pickers and the recorder, the tip links, the
++ * update, and the one file a journal can be carried to a new phone in. There is one journal - the
++ * shelf this class used to expose is gone - so the page asks for the journal's name and nothing
++ * else about which book it is looking at. Each method is a
+  * small, named promise - the page cannot reach a file, a database or an intent that is not spelled
+  * out below, which is what makes an over-the-air screen safe to accept.
+  *
+@@ -36,40 +38,11 @@ class Bridge(private val ui: MainActivity) {
+     @JavascriptInterface
+     fun pageVersion(): String = PageStore.running(ui)
+ 
+-    /** The shelf: id, name, how many days it holds and the last one written in. */
+-    @JavascriptInterface
+-    fun journals(): String {
+-        val all = JSONArray()
+-        runCatching {
+-            store.journals().forEach { j ->
+-                all.put(
+-                    JSONObject()
+-                        .put("id", j.id)
+-                        .put("name", j.name)
+-                        .put("created", j.created)
+-                        .put("entries", j.entries)
+-                        .put("last", j.last ?: "")
+-                )
+-            }
+-        }
+-        return all.toString()
+-    }
+-
+-    /** Start a book and open it. The page asks for a name first, and gets the open book's name back. */
+-    @JavascriptInterface
+-    fun create(name: String): String = runCatching { store.create(name) }.getOrDefault("")
+-
+-    /** Open a book from the shelf. Empty when that id is not on this phone. */
+-    @JavascriptInterface
+-    fun openJournal(id: String): String = runCatching {
+-        if (store.open(id)) store.name() else ""
+-    }.getOrDefault("")
+-
+-    /** The open book's name, for the top bar. */
++    /** The journal's name, for the top bar. */
+     @JavascriptInterface
+     fun currentJournal(): String = runCatching { store.name() }.getOrDefault("")
+ 
+-    /** Every entry that has something in it in the open book, newest first. */
++    /** Every entry that has something in it, newest first. */
+     @JavascriptInterface
+     fun entries(): String {
+         val all = JSONArray()
+diff --git a/app/src/main/java/app/ujournal/MainActivity.kt b/app/src/main/java/app/ujournal/MainActivity.kt
+index 04cd1cf..5c43029 100644
+--- a/app/src/main/java/app/ujournal/MainActivity.kt
++++ b/app/src/main/java/app/ujournal/MainActivity.kt
+@@ -359,9 +359,10 @@ class MainActivity : Activity() {
+     // ---- carrying the shelf to a new phone ----
+ 
+     /**
+-     * Write every journal, every entry and every attachment into one file, wherever the phone's own
+-     * Save dialog points. The archive mirrors the shelf - `<id>/journal.json` and `<id>/<date>/file` -
+-     * and begins with a manifest that says what it is and how much of it there is.
++     * Write the journal, every entry and every attachment into one file, wherever the phone's own
++     * Save dialog points. The archive keeps the on-disk shape - `<id>/journal.json` and
++     * `<id>/<date>/file` - so a backup made by 1.6 still restores, and begins with a manifest that
++     * says what it is and how much of it there is.
+      */
+     fun exportAll() {
+         val i = Intent(Intent.ACTION_CREATE_DOCUMENT)
+@@ -436,8 +437,7 @@ class MainActivity : Activity() {
+                     }
+                 } != null
+             }.getOrDefault(false)
+-            val shown = "Backed up " + books.size + " journal" + (if (books.size == 1) "" else "s") +
+-                ", " + files + " file" + (if (files == 1) "" else "s")
++            val shown = "Backed up your journal, " + files + " file" + (if (files == 1) "" else "s")
+             runOnUiThread {
+                 eval(
+                     "JR&&JR.toast(" +
+@@ -513,10 +513,10 @@ class MainActivity : Activity() {
+                 }
+             }
+             if (problem != null) incoming.deleteRecursively()
+-            val books = (root.listFiles() ?: emptyArray())
+-                .count { it.isDirectory && Store.ID.matches(it.name) }
+-            val message = problem ?: ("Restored " + books + " journal" + (if (books == 1) "" else "s") +
+-                " and " + files + " file" + (if (files == 1) "" else "s"))
++            // Store's constructor is what folds an older multi-book backup into the single journal, so
++            // this is also the moment a 1.6 backup stops looking like a shelf.
++            val message = problem ?: ("Restored your journal and " + files + " file" +
++                (if (files == 1) "" else "s"))
+             runOnUiThread {
+                 if (problem == null) {
+                     store = Store(applicationContext)
+diff --git a/app/src/main/java/app/ujournal/Store.kt b/app/src/main/java/app/ujournal/Store.kt
+index 040c7f9..6624dc0 100644
+--- a/app/src/main/java/app/ujournal/Store.kt
++++ b/app/src/main/java/app/ujournal/Store.kt
+@@ -11,9 +11,6 @@ import java.time.LocalDate
+ data class Att(val name: String, val mime: String)
+ data class Entry(val date: LocalDate, val title: String, val body: String, val atts: List<Att>)
+ 
+-/** One book: what it is called, when it was started, and what is in it. */
+-data class Journal(val id: String, val name: String, val created: String, val entries: Int, val last: String?)
+-
+ /**
+  * A plan is something that happens on a day: an hour on a Tuesday, something that runs over several
+  * days, or a birthday that comes round every year. [start] and [end] are dates, and the times are
+@@ -36,10 +33,11 @@ data class Plan(
+  *   journals/<id>/journal.json        {"name":"...","created":"YYYY-MM-DD","plans":[...]}
+  *   journals/<id>/YYYY-MM-DD/entry.json + attachments beside it
+  *
+- * A journal is a book, and there can be more than one, which is why a day is addressed through the
+- * book it lives in. [current] is the one the page is looking at; [journals] is the shelf. The folder
+- * 1.3 wrote - filesDir/journal - is moved into this shape once, on the first launch after the
+- * update, so an existing journal becomes the first book and no entry is left behind.
++ * There is ONE journal. A day is still addressed through a book folder, because that is the shape
++ * every backup already has and a restore already understands - but the shelf that used to sit in
++ * front of it is gone: [collapse] folds any books found on disk into one, and [current] is always
++ * that book. The folder 1.3 wrote - filesDir/journal - is moved into this shape once, on the first
++ * launch after the update, so an existing journal becomes the journal and no entry is left behind.
+  *
+  * Plans live in the same journal.json as the name, because that file is what a backup already copies
+  * for each book: the calendar travels to a new phone with the entries instead of needing a format of
+@@ -49,20 +47,89 @@ class Store(ctx: Context) {
+     private val cr = ctx.contentResolver
+     private val root = File(ctx.filesDir, DIR).apply { mkdirs() }
+ 
+-    /** The open book. Null only before the shelf has been read. */
++    /** The journal's folder. Null only before the disk has been read. */
+     private var open: String? = null
+ 
+-    init { migrate(ctx) }
++    init {
++        migrate(ctx)
++        open = collapse()
++    }
+ 
+-    /** The book being drawn, healing a stale id (a restore can replace the whole shelf). */
++    /** The journal being drawn, healing a stale id (a restore can replace everything on disk). */
+     val current: String get() = ensure()
+ 
+     private fun ensure(): String {
+         open?.let { if (File(root, it).isDirectory) return it }
+-        val first = journals().firstOrNull()?.id ?: newId()
+-        if (!File(root, first).isDirectory) writeMeta(first, YOUR_JOURNAL)
+-        open = first
+-        return first
++        val id = collapse() ?: newId()
++        if (!File(root, id).isDirectory) writeMeta(id, YOUR_JOURNAL)
++        open = id
++        return id
++    }
++
++    /** Every book folder on disk, which after [collapse] is exactly one. */
++    private fun books(): List<File> = (root.listFiles() ?: emptyArray())
++        .filter { it.isDirectory && ID.matches(it.name) }
++        .sortedBy { it.name }
++
++    private fun daysOf(d: File): List<File> = (d.listFiles() ?: emptyArray())
++        .filter { it.isDirectory && DATE.matches(it.name) }
++
++    /**
++     * ONE JOURNAL.
++     *
++     * Up to 1.6 this app kept a shelf, and the page showed it: a list of books, a card to start
++     * another, an "All journals" sheet. That is what was asked to go, and this is where it goes:
++     * any books already on a phone are folded into one rather than left stranded behind a UI that
++     * can no longer reach them.
++     *
++     * The book kept is the one with the most days in it, because that is the honest answer to "which
++     * one did I actually write in"; ties go to the older folder. A day that exists in two books is
++     * not merged - a day is one page - so the loser's copy is moved aside under a name that is not a
++     * date: it stays on disk, still travels inside a backup, and is never silently overwritten.
++     * Plans travel with the book they were written in, skipping any id already present.
++     */
++    private fun collapse(): String? {
++        val live = books()
++        if (live.isEmpty()) return null
++        if (live.size == 1) return live.first().name
++        val keep = live.maxWithOrNull(
++            compareBy<File> { daysOf(it).size }.thenByDescending { it.name }
++        ) ?: return null
++        val kept = meta(keep)
++        val plans = kept.optJSONArray(PLANS) ?: JSONArray()
++        val ids = (0 until plans.length()).mapNotNull {
++            runCatching { plans.getJSONObject(it).optString("id") }.getOrNull()
++        }.toMutableSet()
++
++        live.filter { it != keep }.forEach { book ->
++            daysOf(book).forEach { bookDay ->
++                val target = File(keep, bookDay.name)
++                if (!target.exists()) {
++                    if (!bookDay.renameTo(target)) bookDay.copyRecursively(target, overwrite = false)
++                } else {
++                    val aside = File(keep, "$ASIDE-${book.name}-${bookDay.name}")
++                    aside.deleteRecursively()
++                    if (!bookDay.renameTo(aside)) bookDay.copyRecursively(aside, overwrite = true)
++                }
++            }
++            runCatching { meta(book).optJSONArray(PLANS) }.getOrNull()?.let { arr ->
++                for (i in 0 until arr.length()) {
++                    val p = runCatching { arr.getJSONObject(i) }.getOrNull() ?: continue
++                    val id = p.optString("id")
++                    if (id.isNotEmpty() && !ids.add(id)) continue
++                    plans.put(p)
++                }
++            }
++            // Nothing is deleted while it still holds something: an emptied book goes, a book with
++            // a file in it is renamed out of the shelf's naming instead, so the file survives.
++            if ((book.listFiles() ?: emptyArray()).all { it.isFile && it.name == META }) {
++                book.deleteRecursively()
++            } else {
++                book.renameTo(File(root, "$ASIDE-${book.name}"))
++            }
++        }
++        runCatching { File(keep, META).writeText(kept.put(PLANS, plans).toString()) }
++        return keep.name
+     }
+ 
+     private fun newId() = "j" + System.currentTimeMillis().toString(36)
+@@ -77,38 +144,6 @@ class Store(ctx: Context) {
+         )
+     }
+ 
+-    /** The shelf, most recently written in first; a book with no entries sorts by when it was made. */
+-    fun journals(): List<Journal> = (root.listFiles() ?: emptyArray())
+-        .filter { it.isDirectory && ID.matches(it.name) }
+-        .map { d ->
+-            val days = (d.listFiles() ?: emptyArray())
+-                .filter { it.isDirectory && DATE.matches(it.name) }
+-                .map { it.name }
+-            val m = meta(d)
+-            Journal(
+-                id = d.name,
+-                name = m.optString("name").ifBlank { YOUR_JOURNAL },
+-                created = m.optString("created"),
+-                entries = days.size,
+-                last = days.maxOrNull()
+-            )
+-        }
+-        .sortedWith(compareByDescending<Journal> { it.last ?: it.created })
+-
+-    fun create(name: String): String {
+-        val id = newId()
+-        writeMeta(id, name.trim().ifBlank { YOUR_JOURNAL }.take(60))
+-        open = id
+-        return id
+-    }
+-
+-    /** Open one of the shelf's books. False when the id is not on this phone. */
+-    fun open(id: String): Boolean {
+-        if (!ID.matches(id) || !File(root, id).isDirectory) return false
+-        open = id
+-        return true
+-    }
+-
+     fun name(id: String = current): String =
+         meta(File(root, id)).optString("name").ifBlank { YOUR_JOURNAL }
+ 
+@@ -287,6 +322,9 @@ class Store(ctx: Context) {
+         /** The key plans are kept under in journal.json, beside the name. */
+         const val PLANS = "plans"
+ 
++        /** A book or day put out of the way by [collapse]; never a date, so it is never drawn. */
++        private const val ASIDE = "merged"
++
+         /** What the first book is called before anyone names it: theirs, not the app's. */
+         const val YOUR_JOURNAL = "Your Journal"
+ 

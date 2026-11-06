@@ -145,12 +145,18 @@ class Bridge(private val ui: MainActivity) {
      * How many birthdays FamTM is holding that this journal does not have yet, or -1 when FamTM is
      * not installed or publishes none. Names and days only: that is all the provider hands over.
      */
+    /**
+     * What the Plans card draws before a tap: how many of FamTM's birthdays are not in the journal
+     * yet, and -1 or -2 when there is no answer to give. -1 is no FamTM on the phone, -2 is FamTM on
+     * the phone whose list could not be read, and the card says the two differently now.
+     */
     @JavascriptInterface
     fun famtmBirthdays(): Int = runCatching {
-        val list = FamTm.birthdays(ui) ?: return@runCatching -1
+        if (!FamTm.installed(ui)) return@runCatching -1
+        val list = FamTm.birthdays(ui) ?: return@runCatching -2
         val have = birthdays()
         list.count { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
-    }.getOrDefault(-1)
+    }.getOrDefault(-2)
 
     /** Bring them across as birthday plans; returns how many were actually added. */
     @JavascriptInterface
@@ -173,7 +179,9 @@ class Bridge(private val ui: MainActivity) {
      */
     @JavascriptInterface
     fun syncBirthdays(): String = runCatching {
-        val offered = FamTm.birthdays(ui) ?: emptyList()
+        val app = FamTm.version(ui)
+        val read = FamTm.birthdays(ui)
+        val offered = read ?: emptyList()
         val have = birthdays()
         var added = 0
         offered.filter { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
@@ -184,7 +192,16 @@ class Bridge(private val ui: MainActivity) {
         JSONObject()
             .put("added", added)
             .put("offered", offered.size)
-            .put("installed", FamTm.installed(ui))
+            .put("installed", app != null)
+            // Why there is nothing to add, in the one word the card can turn into a sentence:
+            // no-app is no FamTM on the phone, no-read is FamTM there but unreadable, ok is an
+            // answer that simply held nothing new.
+            .put("why", when {
+                app == null -> "no-app"
+                read == null -> "no-read"
+                else -> "ok"
+            })
+            .put("app", app ?: "")
             // What this journal publishes back, counted after the import so the number is the truth
             // of the list FamTM will read, not of the list before the tap.
             .put("shared", store.plans().count { it.kind == "birthday" })

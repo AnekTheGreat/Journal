@@ -13,11 +13,15 @@ import org.json.JSONArray
  * addresses. The provider answers a query and refuses every write, so this is a one-way read of a
  * short list, not a way to reach the family.
  *
- * Everything here fails quietly. FamTM may not be installed, may be an older copy with no provider,
- * or may have nobody with a birthday recorded; in each case the journal simply has no birthdays to
- * offer, which is the same thing the reader sees.
+ * Since 1.9.3 it also says which of the three cases it is in, because the card used to call all of
+ * them "FamTM is not installed" and that was wrong twice out of three times: the app may be missing,
+ * or it may be there and its list unreadable (an older FamTM with no provider, or an Android build
+ * that hides it), or it may answer with an empty list. [version] is the package lookup, [birthdays]
+ * is the read, and an empty answer is no longer confused with a refusal.
  */
 internal object FamTm {
+
+    private const val PACKAGE = "com.FamTM.app"
 
     /** One person's birthday: the day it repeats on, and the year when one was recorded. */
     class Birthday(val name: String, val month: Int, val day: Int, val year: Int) {
@@ -33,30 +37,48 @@ internal object FamTm {
         val date: String = (if (year in 1..9999) year else 2000).toString() + "-" + md
     }
 
-    private val URI: Uri = Uri.parse("content://com.FamTM.app.birthdays/list")
+    private val URI: Uri = Uri.parse("content://${PACKAGE}.birthdays/list")
 
-    /** Whether FamTM answers at all, so a caller can tell "none" from "not here". */
-    fun installed(ctx: Context): Boolean = try {
-        ctx.contentResolver.query(URI, null, null, null, null)?.use { true } ?: false
+    /**
+     * The version of FamTM on this phone, or null when there is none. This is the package lookup and
+     * not the provider, so it can tell "not installed" from "installed but its list could not be
+     * read" - the two cases the old message ran together.
+     */
+    fun version(ctx: Context): String? = try {
+        @Suppress("DEPRECATION")
+        ctx.packageManager.getPackageInfo(PACKAGE, 0)?.versionName
     } catch (e: Exception) {
-        false
+        null
     }
 
-    /** The list FamTM publishes, or null when it is not installed, has no provider, or has none. */
+    /** Whether FamTM is on the phone at all, whatever its list does. */
+    fun installed(ctx: Context): Boolean = version(ctx) != null
+
+    /**
+     * The list FamTM publishes. Empty when it answered with nothing, and null only when it could not
+     * be read at all - no provider, a refusal, or a phone that will not let this app see it.
+     */
     fun birthdays(ctx: Context): List<Birthday>? = try {
         val c = ctx.contentResolver.query(URI, null, null, null, null) ?: return null
         c.use { cur ->
-            if (!cur.moveToFirst()) return null
-            val i = cur.getColumnIndex("json")
-            if (i < 0) return null
-            val arr = JSONArray(cur.getString(i))
-            (0 until arr.length()).mapNotNull { k ->
-                val o = arr.optJSONObject(k) ?: return@mapNotNull null
-                val name = o.optString("n").trim().take(80)
-                val m = o.optInt("m")
-                val d = o.optInt("d")
-                if (name.isEmpty() || m !in 1..12 || d !in 1..31) null
-                else Birthday(name, m, d, o.optInt("y"))
+            if (!cur.moveToFirst()) {
+                emptyList()
+            } else {
+                val i = cur.getColumnIndex("json")
+                if (i < 0) {
+                    emptyList()
+                } else {
+                    val raw = cur.getString(i) ?: "[]"
+                    val arr = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+                    (0 until arr.length()).mapNotNull { k ->
+                        val o = arr.optJSONObject(k) ?: return@mapNotNull null
+                        val name = o.optString("n").trim().take(80)
+                        val m = o.optInt("m")
+                        val d = o.optInt("d")
+                        if (name.isEmpty() || m !in 1..12 || d !in 1..31) null
+                        else Birthday(name, m, d, o.optInt("y"))
+                    }
+                }
             }
         }
     } catch (e: Exception) {

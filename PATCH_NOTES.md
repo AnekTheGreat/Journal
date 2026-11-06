@@ -7,6 +7,28 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.3 — November 6, 2026
+
+**The birthdays card now says which of the three things happened**
+
+### Fixed
+- **"FamTM is not installed" was said for two other problems as well.** The card had one failure
+  message and three ways to reach it: no FamTM on the phone, FamTM on the phone whose list this app
+  could not read, and a list it read that was empty. The app now looks the FamTM package up first,
+  reads its version, and only then asks for the list - so the sentence on the card matches what
+  actually happened.
+- **The journal's own version is named when the read fails.** The screen arrives over the air while
+  the asking lives in the app, so an older app with the newest screen behaves exactly like a broken
+  one. The message now names both versions, which is the difference between "update the app" and
+  "something is wrong with the list".
+- **An empty list is no longer treated as a refusal.** A FamTM that answers with an empty list is a
+  FamTM with nothing in it, and the card says that instead of blaming the install.
+
+### Unchanged
+- The provider here still publishes this journal's birthdays back to FamTM, names and days only, and
+  the plan durations, the tip heart and the screen are as they were in 1.9.2.
+
+
 ## 1.9.2 — November 6, 2026
 
 **The birthdays arrive: the journal now asks Android for FamTM's list**

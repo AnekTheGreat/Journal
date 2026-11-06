@@ -19,7 +19,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 body{display:flex;flex-direction:column}
 header#bar{display:flex;align-items:center;gap:6px;padding:14px 16px 8px}
 #brand{font-family:Georgia,serif;font-size:24px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#check,#more{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
+#check,#more,#tip{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
+#tip{color:var(--tan);font-size:19px}
 main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 96px}
 nav#tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--sand);padding:6px 0 8px}
 nav#tabs button{flex:1;background:none;border:0;color:var(--muted);font-size:19px;display:flex;flex-direction:column;gap:2px;align-items:center}
@@ -66,12 +67,15 @@ nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;ma
 .plan .pt b{display:block;font-family:Georgia,serif;font-size:16px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plan .pt i{display:block;font-style:normal;color:var(--muted);font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plan .cake{font-size:17px}
-.fld{width:100%;border:1px solid var(--sand);border-radius:12px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:15px;padding:10px 12px;margin:5px 0 12px}
+.fld{width:100%;border:1px solid var(--sand);border-radius:14px;background:var(--card);color:var(--ink);font-family:inherit;font-size:15px;padding:12px 14px;margin:5px 0 12px;-webkit-appearance:none;appearance:none;box-shadow:0 1px 0 rgba(74,63,53,.03)}
 .fld.ta{min-height:62px;resize:none}
 .fl{display:block;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);padding-top:2px}
 .chips{display:flex;gap:8px;margin:6px 0}
 .chip{border:1px solid var(--sand);background:none;border-radius:14px;padding:8px 15px;font-size:13.5px;color:var(--ink)}
 .chip.on{background:var(--tan);border-color:var(--tan);color:#fff}
+.durs{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}
+.dur{flex:0 0 auto;border:1px solid var(--sand);background:var(--card);color:var(--ink);border-radius:999px;padding:9px 15px;font-size:13.5px;font-family:inherit}
+.dur.on{background:var(--tan);border-color:var(--tan);color:#fff}
 .two{display:flex;gap:10px}
 .two>div{flex:1;min-width:0}
 .cal-head{display:flex;align-items:center;gap:2px;padding:10px 0}
@@ -124,7 +128,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 </style>
 </head>
 <body>
-<header id="bar"><div id="brand">UJournal</div><button id="more" title="Back up or move to a new device">⋯</button><button id="check" title="Check for updates">⟳</button></header>
+<header id="bar"><div id="brand">UJournal</div><button id="more" title="Back up or move to a new device">⋯</button><button id="tip" title="Support UJournal">♥</button><button id="check" title="Check for updates">⟳</button></header>
 <main id="view"></main>
 <nav id="tabs" class="hide"><button id="t0" class="on">📖<span>Journal</span></button><button id="t1">📅<span>Calendar</span></button><button id="t2">🎉<span>Plans</span></button></nav>
 <button id="fab" class="hide">＋</button>
@@ -139,7 +143,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.0";
+const JOURNAL_PAGE = "1.9.1";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -203,12 +207,6 @@ const JOURNAL_PAGE = "1.9.0";
     return h + '</div>';
   }
 
-  function supportCard() {
-    return '<div class="support" data-tip="1"><div><div class="s1">Support UJournal</div>' +
-      '<div class="s2">A tip is paid through Stripe, on a card page of its own.</div></div>' +
-      '<div class="h">♥</div></div>';
-  }
-
   function drawList() {
     var v = $("view");
     var todays = (S.plans || []).filter(function (p) { return onDay(p, today()); });
@@ -217,7 +215,7 @@ const JOURNAL_PAGE = "1.9.0";
       : "";
     if (!S.entries.length) {
       v.innerHTML = top + '<div class="empty">This journal is waiting.<br>Tap ＋ to write today.</div>' +
-        othersCard() + supportCard();
+        othersCard();
       return;
     }
     var h = "", y = null, m = null;
@@ -227,7 +225,7 @@ const JOURNAL_PAGE = "1.9.0";
       if (d.getMonth() !== m) { m = d.getMonth(); h += '<div class="month">' + MONTHS[m] + '</div>'; }
       h += card(e);
     });
-    v.innerHTML = top + h + othersCard() + supportCard();
+    v.innerHTML = top + h + othersCard();
   }
 
   // ---- the calendar ----
@@ -293,6 +291,16 @@ const JOURNAL_PAGE = "1.9.0";
   }
 
   function planEnd(p) { return p.end && p.end > p.start ? p.end : p.start; }
+
+  function minsOf(t) {
+    var p = String(t || "").split(":"), h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+    return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
+  }
+
+  function hhmm(n) {
+    n = ((n % 1440) + 1440) % 1440;
+    return pad2(Math.floor(n / 60)) + ":" + pad2(n % 60);
+  }
 
   function hm(t) {
     var parts = String(t || "").split(":"), h = parseInt(parts[0], 10), m = parts[1] || "00";
@@ -403,21 +411,29 @@ const JOURNAL_PAGE = "1.9.0";
     return isNaN(n) || n < 0 ? 0 : n;
   }
 
-  // One button, and nothing else: FamTM either has birthdays this journal has not seen yet, or it
-  // has nothing to offer and the button is not there at all. A tap is the whole of the feature.
+  // 1.9.1 - BOTH WAYS. The bare import left the exchange one-sided: FamTM's birthdays arrived and
+  // the ones typed here could never go back, because only FamTM published a list. The app now
+  // publishes one too (see Birthdays.kt), so one tap does both halves and the card says so.
   function famtmButton() {
     var n = famtmPending();
-    if (!n) return "";
-    return '<button class="fambtn" data-famtm="1"><span class="fc">🎂</span><span>' +
-      '<b>' + (n === 1 ? "Add the birthday from FamTM" : "Add " + n + " birthdays from FamTM") + '</b>' +
-      '<i>Everyone alive in the family, marked every year</i></span></button>';
+    var line = n > 0
+      ? (n === 1 ? "1 new birthday from FamTM" : n + " new birthdays from FamTM")
+      : "Bring FamTM's across, and share yours back";
+    return '<button class="fambtn" data-sync="1"><span class="fc">🎂</span><span>' +
+      '<b>Sync birthdays</b><i>' + line + '</i></span></button>';
   }
 
-  function importFam() {
-    var added = parseInt(call("importFamTmBirthdays"), 10);
+  function runSync() {
+    var r = parse(call("syncBirthdays"), null) || {};
     refresh();
-    if (!(added > 0)) { say("Nothing new to bring across"); return; }
-    say(added === 1 ? "One birthday added" : added + " birthdays added");
+    var added = parseInt(r.added, 10) || 0;
+    var shared = parseInt(r.shared, 10) || 0;
+    var installed = r.installed === true || r.installed === "true";
+    var msg = added > 0
+      ? (added === 1 ? "One birthday added from FamTM" : added + " birthdays added from FamTM")
+      : (installed ? "FamTM had nothing new" : "Nothing new here, and FamTM is not installed");
+    if (shared > 0) msg += " · " + (shared === 1 ? "1 shared back" : shared + " shared back");
+    say(msg);
   }
 
   // ---- what's new ----
@@ -428,6 +444,16 @@ const JOURNAL_PAGE = "1.9.0";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "1.9.1": {
+      date: "6 November 2026",
+      title: "Birthdays both ways, and a plan that asks how long",
+      notes: [
+        "Birthdays sync both ways now. The one card in Plans brings FamTM's birthdays across and, in the same tap, publishes the birthdays in this journal back out - so a birthday typed here is one FamTM can see too.",
+        "Nothing is uploaded and nothing is typed twice: the two apps hand a short list of names and days to each other on the phone. FamTM's side of that is its own app, which reads the list the same way this one reads FamTM's.",
+        "A plan no longer asks for an end time on a dial. Tell it how long it lasts - 30 minutes, an hour, two hours, all day - and the end is worked out, in the app's own tan.",
+        "The tip jar moved out of the way: it is one heart at the top right, beside the menu, instead of a card at the bottom of every list."
+      ]
+    },
     "1.9.0": {
       date: "5 November 2026",
       title: "Birthdays from FamTM, one button in Plans",
@@ -482,8 +508,8 @@ const JOURNAL_PAGE = "1.9.0";
       '<div class="chips"><button id="pke" class="chip">Event</button><button id="pkb" class="chip">Birthday</button></div>' +
       '<label class="fl">Day</label><input id="pd" class="fld" type="date" value="' + esc(plan.start) + '">' +
       '<div id="ptimes">' +
-        '<div class="two"><div><label class="fl">From</label><input id="pst" class="fld" type="time" value="' + esc(plan.startTime) + '"></div>' +
-        '<div><label class="fl">To</label><input id="pet" class="fld" type="time" value="' + esc(plan.endTime) + '"></div></div>' +
+        '<label class="fl">Starts</label><input id="pst" class="fld" type="time" value="' + esc(plan.startTime) + '">' +
+        '<label class="fl">How long</label><div class="durs" id="pdur"></div>' +
         '<label class="fl">Last day, if it runs over</label><input id="pe" class="fld" type="date" value="' + esc(plan.end > plan.start ? plan.end : "") + '">' +
       '</div>' +
       '<label class="fl">Notes</label><textarea id="pn" class="fld ta" placeholder="Optional">' + esc(plan.note) + '</textarea>' +
@@ -492,13 +518,41 @@ const JOURNAL_PAGE = "1.9.0";
       '<button id="psave" class="go">Save</button></div>';
     $("sheet").classList.remove("hide");
 
+    // 1.9.1 - HOW LONG, NOT WHEN IT ENDS. A second clock used to ask for an end time, which meant
+    // reading a dial and doing the arithmetic in your head. A plan now asks how long it lasts and
+    // works the end out; All day is a length too, and the chips are the app's own tan.
+    var DURS = [[0, "All day"], [30, "30 min"], [60, "1 hour"], [120, "2 hours"], [180, "3 hours"], [300, "5 hours"]];
+    var durMin = plan.startTime ? (plan.endTime ? Math.max(0, minsOf(plan.endTime) - minsOf(plan.startTime)) : 60) : 0;
+
+    function paintDur() {
+      var host = $("pdur");
+      if (!host) return;
+      var list = DURS.slice();
+      var known = false;
+      list.forEach(function (d) { if (d[0] === durMin) known = true; });
+      if (!known) list.splice(1, 0, [durMin, durMin + " min"]);
+      host.innerHTML = list.map(function (d) {
+        return '<button class="dur' + (d[0] === durMin ? " on" : "") + '" data-dur="' + d[0] + '">' + d[1] + '</button>';
+      }).join("");
+      host.querySelectorAll("[data-dur]").forEach(function (b) {
+        b.onclick = function () {
+          durMin = parseInt(b.getAttribute("data-dur"), 10) || 0;
+          if (durMin > 0 && !$("pst").value) $("pst").value = "09:00";
+          if (durMin === 0) $("pst").value = "";
+          paintDur();
+        };
+      });
+    }
+
     function paint() {
       $("pke").className = "chip" + (kind === "event" ? " on" : "");
       $("pkb").className = "chip" + (kind === "birthday" ? " on" : "");
       $("ptimes").style.display = kind === "birthday" ? "none" : "block";
+      paintDur();
     }
     $("pke").onclick = function () { kind = "event"; paint(); };
     $("pkb").onclick = function () { kind = "birthday"; paint(); };
+    $("pst").onchange = function () { if (!$("pst").value) { durMin = 0; paintDur(); } else if (durMin === 0) { durMin = 60; paintDur(); } };
     paint();
 
     $("pcancel").onclick = function () { $("sheet").classList.add("hide"); };
@@ -520,7 +574,10 @@ const JOURNAL_PAGE = "1.9.0";
       var out = { id: plan.id, title: title, kind: kind, start: start, startTime: "", end: start, endTime: "", note: ($("pn").value || "").trim() };
       if (kind === "event") {
         out.startTime = $("pst").value || "";
-        out.endTime = out.startTime ? ($("pet").value || "") : "";
+        // The end is the length added to the start; a plan that runs past midnight stops at 23:59
+        // rather than silently reading as one that ends before it began.
+        var finish = out.startTime && durMin > 0 ? minsOf(out.startTime) + durMin : 0;
+        out.endTime = finish > 0 ? (finish >= 1440 ? "23:59" : hhmm(finish)) : "";
         var last = $("pe").value || "";
         out.end = last && last > start ? last : start;
       }
@@ -796,12 +853,13 @@ const JOURNAL_PAGE = "1.9.0";
   $("back").onclick = function () { closeDay(); };
   $("attach").onclick = openMenu;
   $("more").onclick = showMove;
+  $("tip").onclick = showTips;
   $("check").onclick = function () { say("Checking for updates…"); call("checkUpdates"); };
 
   $("view").addEventListener("click", function (ev) {
     if (ev.target.closest("[data-tip]")) { showTips(); return; }
     if (ev.target.closest("[data-apps]")) { showOthers(); return; }
-    if (ev.target.closest("[data-famtm]")) { importFam(); return; }
+    if (ev.target.closest("[data-sync]")) { runSync(); return; }
     var np = ev.target.closest("[data-plan-new]");
     if (np) { var at = np.getAttribute("data-plan-new"); showPlan(null, at && at !== "1" ? at : today()); return; }
     var pr = ev.target.closest("[data-plan]");

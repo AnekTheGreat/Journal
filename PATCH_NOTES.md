@@ -7,6 +7,16 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.1 — November 6, 2026
+
+**Birthdays both ways, a plan that asks how long, and a quieter tip jar**
+
+- **The birthdays sync both ways.** The exchange used to be one-sided: FamTM published a list and the journal could only read it. The app now publishes its own birthdays at `content://app.ujournal.birthdays/list`, in exactly the shape FamTM publishes, so FamTM reads what is typed here the same way this app reads what FamTM keeps. The card in Plans is now **Sync birthdays**, and one tap does both halves: FamTM's get added and the journal's get shared back.
+- **Only names and days travel, on the phone.** No upload, no account, no second thing to type. FamTM's own side of the exchange is its app; the journal now holds up its end of the same contract.
+- **A plan asks how long, not when it ends.** The second clock that asked for an end time is gone: a plan picks **30 min, 1 hour, 2 hours, 3 hours, 5 hours or All day** from tan chips and the end time is worked out from the start. A plan running past midnight stops at 23:59 rather than reading as one that ends before it began.
+- **The tip jar is one heart.** The Support card is gone from the journal list; supporting the app is the ♥ at the top right, beside the menu, with the same five amounts behind it.
+- **Tan and native throughout.** Fields are the app's own card colour with no browser chrome, the duration chips are tan when chosen, and the sheets line up with the rest of the app.
+
 ## 1.9.0 — November 5, 2026
 
 **Birthdays from FamTM are one button, and a new screen says what changed**

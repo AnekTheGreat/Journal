@@ -27,6 +27,13 @@
         </activity>
         <!-- Not for updates any more: photos, video and recorded audio are written into the app's
              own files and handed to the camera, the player and the picker through this provider. -->
+        <!-- This journal's birthdays, published in the same shape FamTM publishes its own, so the
+             exchange runs both ways: FamTM can read what was typed here, and this app can read what
+             FamTM keeps. Read-only and names-and-days only. -->
+        <provider
+            android:name=".Birthdays"
+            android:authorities="app.ujournal.birthdays"
+            android:exported="true" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

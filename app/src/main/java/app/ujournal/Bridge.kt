@@ -166,6 +166,31 @@ class Bridge(private val ui: MainActivity) {
         added
     }.getOrDefault(0)
 
+    /**
+     * Both directions at once, which is what the one button in Plans runs: FamTM's birthdays come in,
+     * and this journal's go out through [Birthdays] at `content://app.ujournal.birthdays/list`, where
+     * FamTM reads them the same way this app reads its list. Returns what actually changed.
+     */
+    @JavascriptInterface
+    fun syncBirthdays(): String = runCatching {
+        val offered = FamTm.birthdays(ui) ?: emptyList()
+        val have = birthdays()
+        var added = 0
+        offered.filter { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
+            .forEach { b ->
+                store.savePlan(Plan("", b.name, b.date, "", b.date, "", "birthday", FROM_FAMTM))
+                added++
+            }
+        JSONObject()
+            .put("added", added)
+            .put("offered", offered.size)
+            .put("installed", FamTm.installed(ui))
+            // What this journal publishes back, counted after the import so the number is the truth
+            // of the list FamTM will read, not of the list before the tap.
+            .put("shared", store.plans().count { it.kind == "birthday" })
+            .toString()
+    }.getOrDefault("{}")
+
     /** Every birthday already in the plans, as name|MM-DD, which is what a birthday repeats on. */
     private fun birthdays(): Set<String> = store.plans()
         .filter { it.kind == "birthday" }

@@ -152,7 +152,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.4";
+const JOURNAL_PAGE = "1.9.5";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -422,11 +422,18 @@ const JOURNAL_PAGE = "1.9.4";
   // read-only provider. The journal asks for it only when FamTM is installed, and only the name and
   // the day come across: they become birthday plans, which the calendar already marks in every year
   // without needing a date of their own.
-  // -1 is no FamTM on the phone, -2 is FamTM there whose list this app could not read. They are
-  // different problems and the card says so, instead of calling both of them "not installed".
-  function famtmPending() {
+  // What the card knows, in one read: which FamTM is on the phone, how many birthdays it offers, and
+  // how many are already here. Offered -1 means the list could not be read at all, which is not the
+  // same as a list that was read and turned out to be empty.
+  function famtmState() {
+    var s = parse(call("famtmState"), null);
+    if (s && s.why) return s;
+    // An app older than 1.9.5 only answers with a count of the ones that are new here.
     var n = parseInt(call("famtmBirthdays"), 10);
-    return isNaN(n) ? 0 : n;
+    return {
+      why: n === -1 ? "no-app" : n === -2 ? "no-read" : "ok",
+      app: "", offered: n > 0 ? n : 0, kept: 0
+    };
   }
 
   // The version of the app the screen is running in. The screen turns up over the air while the
@@ -439,17 +446,13 @@ const JOURNAL_PAGE = "1.9.4";
   // the ones typed here could never go back, because only FamTM published a list. The app now
   // publishes one too (see Birthdays.kt), so one tap does both halves and the card says so.
   function famtmButton() {
-    var n = famtmPending();
-    var kept = (S.plans || []).filter(function (p) { return p.kind === "birthday"; }).length;
-    var line = n === -1
-      ? "FamTM isn't installed on this phone"
-      : n === -2
-        ? "FamTM is here, but this copy can't read it"
-        : n > 0
-          ? (n === 1 ? "1 new birthday from FamTM" : n + " new birthdays from FamTM")
-          : kept
-            ? (kept === 1 ? "Following FamTM · 1 birthday" : "Following FamTM · " + kept + " birthdays")
-            : "Following FamTM · none yet";
+    var s = famtmState();
+    var app = s.app ? "FamTM " + s.app : "FamTM";
+    var line;
+    if (s.why === "no-app") line = "FamTM isn't installed on this phone";
+    else if (s.why === "no-read") line = app + " is here, but this copy can't read it";
+    else if (s.why === "empty") line = app + " has nobody with a birthday in it";
+    else line = s.offered + " in FamTM · " + s.kept + " here";
     return '<button class="fambtn" data-sync="1"><span class="fc">🎂</span><span>' +
       '<b>Birthdays from FamTM</b><i>' + line + '</i></span></button>';
   }
@@ -459,6 +462,7 @@ const JOURNAL_PAGE = "1.9.4";
     refresh();
     var added = parseInt(r.added, 10) || 0;
     var shared = parseInt(r.shared, 10) || 0;
+    var offered = parseInt(r.offered, 10) || 0;
     var why = String(r.why || "");
     var fam = String(r.app || "");
     var mine = appVer() || JOURNAL_PAGE;
@@ -471,8 +475,10 @@ const JOURNAL_PAGE = "1.9.4";
       msg = (fam ? "FamTM " + fam + " is installed" : "FamTM is installed") +
         ", but this copy of the journal" + (mine ? " (" + mine + ")" : "") +
         " couldn't read its list – update the journal app, open FamTM once, then try again";
+    } else if (offered === 0) {
+      msg = "FamTM read fine, and has nobody with a birthday in it yet – a born date with a day and a month is what it shares";
     } else {
-      msg = "FamTM had nothing new";
+      msg = "Already up to date · " + (shared || 0) + " here";
     }
     if (shared > 0) msg += " · " + (shared === 1 ? "1 shared back" : shared + " shared back");
     say(msg);
@@ -506,6 +512,15 @@ const JOURNAL_PAGE = "1.9.4";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "1.9.5": {
+      date: "6 November 2026",
+      title: "The birthdays card says what FamTM actually holds",
+      notes: [
+        "Every way of getting nothing used to look the same. The card now says which one it is: FamTM is not on the phone, FamTM is here and this copy of the journal cannot read it, or FamTM was read and has nobody with a birthday in it yet.",
+        "It also shows the two counts plainly - how many birthdays FamTM offers, and how many this journal already keeps - so an exchange that is working and an exchange that has nothing to carry can be told apart at a glance.",
+        "A born date with a day and a month is what FamTM shares. A year on its own has no day to keep, so that person is not in the list, and the card now says so instead of going quiet."
+      ]
+    },
     "1.9.4": {
       date: "6 November 2026",
       title: "Birthdays add themselves, and they are not tan",

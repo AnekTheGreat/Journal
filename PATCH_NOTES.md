@@ -7,6 +7,25 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.5 — November 6, 2026
+
+**The birthdays card reports what FamTM actually holds**
+
+### Fixed
+- **Three different things all read as "nothing new".** No FamTM, FamTM that cannot be read, and a
+  FamTM that was read and has nobody in it were indistinguishable on the card. The shell now answers
+  with the FamTM version, the number of birthdays it offers and the number already kept, and the card
+  draws that: an empty list is reported as an empty list rather than as a failed exchange.
+- **The counts are visible.** The card reads N in FamTM and M here, so the difference between an
+  exchange that works and one with nothing to carry is on the screen.
+- **The tap says it in a sentence.** Up to date, nobody with a birthday in FamTM yet, or the versions
+  of both apps when the list could not be read.
+
+### Unchanged
+- Birthdays still add themselves on open and when Plans is opened, nothing is uploaded, and the rose
+  colour in the calendar, the provider back to FamTM and the plan sheet are as they were in 1.9.4.
+
+
 ## 1.9.4 — November 6, 2026
 
 **Birthdays add themselves, and a birthday is rose rather than tan**

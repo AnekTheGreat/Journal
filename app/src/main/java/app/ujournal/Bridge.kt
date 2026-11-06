@@ -208,6 +208,29 @@ class Bridge(private val ui: MainActivity) {
             .toString()
     }.getOrDefault("{}")
 
+    /**
+     * Everything the card needs, in one read: which FamTM is on the phone, how many birthdays it
+     * offers, and how many this journal already keeps. Offered is -1 when the list could not be read
+     * at all, which is a different thing from a list that was read and is empty - the difference
+     * between a broken exchange and a FamTM with nobody's birthday in it.
+     */
+    @JavascriptInterface
+    fun famtmState(): String = runCatching {
+        val app = FamTm.version(ui)
+        val read = FamTm.birthdays(ui)
+        JSONObject()
+            .put("app", app ?: "")
+            .put("offered", read?.size ?: -1)
+            .put("kept", store.plans().count { it.kind == "birthday" })
+            .put("why", when {
+                app == null -> "no-app"
+                read == null -> "no-read"
+                read.isEmpty() -> "empty"
+                else -> "ok"
+            })
+            .toString()
+    }.getOrDefault("{}")
+
     /** Every birthday already in the plans, as name|MM-DD, which is what a birthday repeats on. */
     private fun birthdays(): Set<String> = store.plans()
         .filter { it.kind == "birthday" }

@@ -30,13 +30,13 @@ jobs:
           page = open('app/src/main/assets/index.html', encoding='utf-8').read()
           for need in ('const JOURNAL_PAGE = "1.9.4";', '"1.9.4": {', '--rose:#BE8681',
                        '.grid button.bd{background:var(--rose);color:#fff}',
-                       'var bday = {}', 'var bd = bday[k.slice(5)]',
+                       'planned = {}, bday = {}', 'var bd = bday[k.slice(5)]',
                        'cal-key', 'function autoSync()', 'if (n === 2) autoSync();',
                        'refresh(); autoSync();', 'Following FamTM'):
               if need not in page:
                   sys.exit('the page is missing %r' % need)
           # a birthday must no longer be counted as a plan day, or it would be drawn tan as well
-          cal = page.split('function drawCal')[1].split('function draw')[0]
+          cal = page.split('function drawCal')[1].split('function draw()')[0]
           if 'planned[String(p.start).slice(5)] = 1' in cal:
               sys.exit('a birthday still marks the plan map, so it would be drawn tan')
           if 'bday[String(p.start).slice(5)] = 1' not in cal:

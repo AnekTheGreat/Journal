@@ -1,0 +1,81 @@
+name: Apply 1.9.10
+
+# One-shot: applies dev/patch-1910.py, proves it is idempotent and that My Hub is off the Other apps
+# list, and commits it. The page and build.gradle.kts move together, so release.yml will accept the
+# version this ships.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-1910
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-1910.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-1910.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-1910.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          gradle = open('app/build.gradle.kts', encoding='utf-8').read()
+          notes = open('PATCH_NOTES.md', encoding='utf-8').read()
+          probes = [
+              ('const JOURNAL_PAGE = "1.9.10";', 'the page does not say 1.9.10'),
+              ('"1.9.10": {', "What's New has no 1.9.10 entry"),
+              ('Three more, made the same way and free the same way.', 'the line above the list still says four'),
+              ('["Other apps", "FamTM, SideCut and MeasureT - the apps beside this one."]', 'the Guide still names My Hub'),
+              ('ujournal-page', 'the page lost its ujournal-page marker'),
+          ]
+          for probe, why in probes:
+              if probe not in page:
+                  sys.exit(why)
+          if 'versionName = "1.9.10"' not in gradle:
+              sys.exit('build.gradle.kts does not carry 1.9.10 - release.yml would refuse it')
+          if '## 1.9.10' not in notes:
+              sys.exit('PATCH_NOTES has no 1.9.10 entry')
+          if 'myhub' in page:
+              sys.exit('My Hub is still one of the apps')
+          for name, start in (('card list', 'var OTHERS = ['), ('settings tab', 'var SETAPPS = [')):
+              block = page[page.index(start):]
+              block = block[:block.index('];')]
+              if block.count('["') != 3:
+                  sys.exit('the ' + name + ' has ' + str(block.count('["')) + ' entries, not 3')
+          print('1.9.10: three apps in both lists, no My Hub, gradle and page agree')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.10: My Hub is off the Other apps list"
+          git push

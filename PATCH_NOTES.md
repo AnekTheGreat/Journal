@@ -7,6 +7,18 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.9 — November 6, 2026
+
+**A welcome, a tour, and a Guide under the gear.**
+
+- A first launch opens on a welcome: three lines on what the journal is for, and two buttons,
+  Show me around and Skip. Shown once, marked seen when it appears rather than when it closes.
+- The tour is five steps - writing a day, the three tabs, the gear, backups and updates - with
+  Next, Back and Skip. It draws in the settings sheet, so it uses the same card as the rest of
+  the app and closes without leaving the journal anywhere else.
+- Settings gains a Guide tab: the same tour, the welcome, and every feature in one list.
+- What's New waits behind the welcome, so a new phone is not met by two popups at once.
+
 ## 1.9.8 — November 6, 2026
 
 **One gear, and the whole family in it**

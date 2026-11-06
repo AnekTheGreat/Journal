@@ -143,7 +143,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.1";
+const JOURNAL_PAGE = "1.9.2";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -444,6 +444,15 @@ const JOURNAL_PAGE = "1.9.1";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "1.9.2": {
+      date: "6 November 2026",
+      title: "The birthdays arrive now",
+      notes: [
+        "Sync birthdays works. Android hides one app from another unless the app asks for it by name, and the journal never asked: it asked FamTM for its list, was refused, and said FamTM was not installed while FamTM sat on the same phone. It names FamTM now - the app and the one list it reads - so the same button brings the birthdays across.",
+        "What comes across is unchanged: a name and a day, added to Plans as birthday plans that come round every year. What is typed here is still published back for FamTM to read.",
+        "This one lives in the app rather than only in the screen, so it arrives as an update. The screen came with it."
+      ]
+    },
     "1.9.1": {
       date: "6 November 2026",
       title: "Birthdays both ways, and a plan that asks how long",

@@ -3,6 +3,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Android 11 and later hide one app from another unless the first asks for it by name, and a
+         hidden app cannot be reached at all - not its package, not its provider. UJournal asked
+         FamTM for the birthdays and was told FamTM was not installed, with FamTM sitting on the
+         same phone. These lines are the asking: the package, so it can be found, and the one
+         provider of FamTM's that is read. Nothing else of FamTM's is reachable. -->
+    <queries>
+        <package android:name="com.FamTM.app" />
+        <provider android:authorities="com.FamTM.app.birthdays" />
+    </queries>
+
     <!--
       There is deliberately no REQUEST_INSTALL_PACKAGES here any more. Up to 1.2.3 the app
       downloaded its own update APK and handed it to Android's installer, and that hand-off is the

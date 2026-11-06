@@ -7,6 +7,24 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.2 — November 6, 2026
+
+**The birthdays arrive: the journal now asks Android for FamTM's list**
+
+### Fixed
+- **Sync birthdays did nothing on a phone that has FamTM.** Android 11 and later hide one app from
+  another unless the first names it, and UJournal never named FamTM: the query to
+  content://com.FamTM.app.birthdays/list was refused and the card in Plans said FamTM was not
+  installed. The app now declares FamTM - the package and the one provider it reads - so the same
+  tap brings the birthdays across.
+- **A screen written before this one still works.** The page only changes its own notes and its
+  version; the import, the plans and the calendar are untouched by it.
+
+### Unchanged
+- The provider here still publishes this journal's birthdays back to FamTM, names and days only, and
+  the plan durations and the tip heart are exactly as they were in 1.9.1.
+
+
 ## 1.9.1 — November 6, 2026
 
 **Birthdays both ways, a plan that asks how long, and a quieter tip jar**

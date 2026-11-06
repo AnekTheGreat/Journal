@@ -7,6 +7,24 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.7 — November 6, 2026
+
+**The birthdays arrive together**
+
+### Fixed
+- **A family's birthdays arrived as one.** Importing from FamTM gave each birthday an id made from
+  the clock, and the whole list is saved in one loop inside the same millisecond: every birthday
+  after the first was given an id the one before it already had, so each save replaced the last.
+  Eight birthdays in FamTM arrived as one, and the next open did exactly the same again. A new plan
+  now takes an id no other plan has, so the list arrives whole.
+- **They are drawn in the calendar.** Every imported birthday is a birthday plan on its month and
+  day in every year, in rose beside the tan of a day with an entry.
+
+### Unchanged
+- Still on the phone only: FamTM's living family, a name and a day each, read through its read-only
+  provider, with this journal's own birthdays published back the same way.
+
+
 ## 1.9.6 — November 6, 2026
 
 **The other-apps card leaves the journal list and stays in Plans**

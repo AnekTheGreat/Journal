@@ -7,6 +7,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.time.LocalDate
+import java.util.UUID
 
 data class Att(val name: String, val mime: String)
 data class Entry(val date: LocalDate, val title: String, val body: String, val atts: List<Att>)
@@ -213,7 +214,12 @@ class Store(ctx: Context) {
 
     /** Save a plan beside the others in this book, and hand it back with the id it was given. */
     fun savePlan(p: Plan): Plan {
-        val id = if (ID.matches(p.id)) p.id else "p" + System.currentTimeMillis().toString(36)
+        // A new plan needs an id no other plan has. The clock was not enough: a family's birthdays
+        // are imported one after another inside the same millisecond, so every one of them was given
+        // the id the one before it had, and each save replaced the last - eight birthdays arrived as
+        // one, every time. A random id has no such order to collide on.
+        val id = if (ID.matches(p.id)) p.id
+        else "p" + UUID.randomUUID().toString().replace("-", "")
         val start = if (DATE.matches(p.start)) p.start else LocalDate.now().toString()
         val end = if (DATE.matches(p.end) && p.end >= start) p.end else start
         val birthday = p.kind == "birthday"

@@ -1,0 +1,34 @@
+name: Bump to 1.9.9
+
+# One-shot: moves versionName to the version the page already carries. release.yml refuses to
+# publish when the two disagree, because a phone would otherwise be offered a release it refuses.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Point the build at 1.9.9
+        run: |
+          sed -i 's/versionName = "1.9.8"/versionName = "1.9.9"/' app/build.gradle.kts
+          grep -n 'versionName' app/build.gradle.kts
+          PAGE="$(grep -oE 'JOURNAL_PAGE = "[^"]+"' app/src/main/assets/index.html | head -1 | cut -d'"' -f2)"
+          BUILT="$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)"
+          echo "build says $BUILT, page says $PAGE"
+          [ "$BUILT" = "$PAGE" ] || { echo "::error::the build and the page disagree"; exit 1; }
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add app/build.gradle.kts
+          if git diff --cached --quiet; then echo "already at 1.9.9"; exit 0; fi
+          git commit -m "UJournal 1.9.9: the version the release will carry"
+          git push

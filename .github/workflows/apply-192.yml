@@ -1,0 +1,73 @@
+name: Apply 1.9.2
+
+# One-shot: applies dev/patch-192.py, checks what it wrote, and commits it.
+# The release itself is cut afterwards by release.yml with version 1.9.2.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-192
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch
+        run: python3 dev/patch-192.py
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+
+          x = open('app/src/main/AndroidManifest.xml', encoding='utf-8').read()
+          # the manifest must still be valid XML with the placeholder filled in
+          ET.fromstring(x.replace('${applicationId}', 'app.ujournal'))
+          m = re.search(r'<queries>(.*?)</queries>', x, re.S)
+          if not m:
+              sys.exit('no <queries> in the manifest')
+          q = m.group(1)
+          for need in ('com.FamTM.app', 'com.FamTM.app.birthdays'):
+              if need not in q:
+                  sys.exit('<queries> does not name %s' % need)
+          if x.index('<queries>') > x.index('<application'):
+              sys.exit('<queries> must be a child of <manifest>, before <application>')
+          print('manifest: valid XML, <queries> names FamTM and sits before <application>')
+
+          g = open('app/build.gradle.kts', encoding='utf-8').read()
+          if 'versionName = "1.9.2"' not in g:
+              sys.exit('versionName is not 1.9.2')
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          if 'const JOURNAL_PAGE = "1.9.2";' not in page:
+              sys.exit('the page does not say 1.9.2')
+          if '"1.9.2": {' not in page:
+              sys.exit('the page has no notes for 1.9.2')
+          print('version 1.9.2 in the build file, the page and its notes')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          if (!blocks.length) throw new Error('no script blocks found');
+          for (const b of blocks) new Function(b[1]);   // parses, does not run
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.2: name FamTM so the birthdays actually come across"
+          git push

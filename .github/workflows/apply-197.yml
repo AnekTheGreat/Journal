@@ -1,0 +1,70 @@
+name: Apply 1.9.7
+
+# One-shot: applies dev/patch-197.py, checks it, commits it. release.yml with 1.9.7 cuts it after.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-197
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, then prove it is idempotent
+        run: |
+          python3 dev/patch-197.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-197.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-197.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          store = open('app/src/main/java/app/ujournal/Store.kt', encoding='utf-8').read()
+          if store.count('import java.util.UUID') != 1:
+              sys.exit('Store.kt imports java.util.UUID %d times' % store.count('import java.util.UUID'))
+          if 'UUID.randomUUID().toString().replace("-", "")' not in store:
+              sys.exit('a new plan id is not unique')
+          if '"p" + System.currentTimeMillis()' in store:
+              sys.exit('a plan id is still stamped from the clock')
+          g = open('app/build.gradle.kts', encoding='utf-8').read()
+          if 'versionName = "1.9.7"' not in g:
+              sys.exit('versionName is not 1.9.7')
+          if '## 1.9.7' not in open('PATCH_NOTES.md', encoding='utf-8').read():
+              sys.exit('PATCH_NOTES has no 1.9.7 entry')
+          print('1.9.7: the plan id no longer comes from the clock')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          if (!html.includes('const JOURNAL_PAGE = "1.9.7";')) throw new Error('the page does not name 1.9.7');
+          if (!html.includes('"1.9.7": {')) throw new Error('the page has no 1.9.7 notes');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          if (!blocks.length) throw new Error('no script blocks found');
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.7: a new plan gets an id of its own, so the birthdays arrive together"
+          git push

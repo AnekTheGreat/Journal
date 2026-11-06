@@ -3,11 +3,10 @@
 
 The journal's own things were three separate buttons along the top bar: the ... for a
 backup, the heart for a tip and the arrow for an update. They are all behind one gear
-now, cut into tabs - Journal, Transfer, Updates, Support, Other apps - so the bar is a
-name and one button, and nothing has to be remembered.
+now, cut into tabs - Journal, Transfer, Updates, Support, Other apps.
 
 The row of tabs scrolls sideways, because five tabs do not fit across a phone. Tapping
-one redraws the sheet, and the redraw used to throw the row's scroll position away, so
+one redraws the sheebl, and the redraw used to throw the row's scroll position away, so
 the row snapped back to its first tab. It keeps its place now, and brings the tab you
 picked into view instead of snapping.
 
@@ -68,7 +67,9 @@ STYLE_NEW = """.settabs{display:flex;gap:8px;overflow-x:auto;overscroll-behavior
 
 PANEL_ANCHOR = "  // ---- wiring ----"
 
-PANEL = '''  // ---- settings, in one place and cut into tabs ----
+# Kept in one piece and with no escaped quotes inside it: the page is JavaScript, and a
+# double quote that survives into the wrong string is a syntax error the app cannot run.
+PANEL = """  // ---- settings, in one place and cut into tabs ----
 
   // The journal's own things used to be three buttons in the top bar. They are all behind the gear
   // now, cut into tabs, and the buttons that were there still work for anyone used to them.
@@ -107,7 +108,7 @@ PANEL = '''  // ---- settings, in one place and cut into tabs ----
         '<button class="sbtn" data-setdo="news"><b>What&rsquo;s New</b><i>The notes for this version</i></button>' +
         "<p>A new screen puts itself in place the next time the journal opens, with nothing from a store. Only a change to the app itself comes from the release page.</p>";
     } else if (s === "support") {
-      pane = "<p>UJournal is free and has no ads. A tip is a thank you, and nothing unlocks.</p><div class=\"row\">" +
+      pane = "<p>UJournal is free and has no ads. A tip is a thank you, and nothing unlocks.</p><div class='row'>" +
         [2, 5, 10, 25, 50].map(function (d) { return '<button data-tip-amount="' + d + '">$' + d + "</button>"; }).join("") +
         '</div><button class="sbtn" data-setdo="release"><b>Release notes on the web</b><i>The same notes, in a browser</i></button>';
     } else {
@@ -162,7 +163,7 @@ PANEL = '''  // ---- settings, in one place and cut into tabs ----
     });
   }
 
-'''
+  """
 
 WIRE_OLD = '  $("more").onclick = showMove;'
 WIRE_NEW = '  $("more").onclick = showMove;\n  $("set").onclick = function () { showSettings(""); };'

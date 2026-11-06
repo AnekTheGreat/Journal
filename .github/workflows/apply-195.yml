@@ -1,0 +1,70 @@
+name: Apply 1.9.5
+
+# One-shot: applies dev/patch-195.py, checks what it wrote, and commits it.
+# The release itself is cut afterwards by release.yml with version 1.9.5.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-195
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch
+        run: python3 dev/patch-195.py
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+
+          b = open('app/src/main/java/app/ujournal/Bridge.kt', encoding='utf-8').read()
+          for need in ('fun famtmState(): String', 'put("offered"', 'put("kept"', 'read.isEmpty() -> "empty"'):
+              if need not in b:
+                  sys.exit('Bridge.kt is missing %r' % need)
+
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          for need in ('const JOURNAL_PAGE = "1.9.5";', '"1.9.5": {', 'function famtmState()',
+                       'has nobody with a birthday in it', 'in FamTM · ', 'offered === 0'):
+              if need not in page:
+                  sys.exit('the page is missing %r' % need)
+          if 'FamTM had nothing new' in page:
+              sys.exit('the old catch-all sentence is still in the page')
+
+          g = open('app/build.gradle.kts', encoding='utf-8').read()
+          if 'versionName = "1.9.5"' not in g:
+              sys.exit('versionName is not 1.9.5')
+          n = open('PATCH_NOTES.md', encoding='utf-8').read()
+          if '## 1.9.5 — November 6, 2026' not in n:
+              sys.exit('PATCH_NOTES has no 1.9.5 entry')
+          print('1.9.5: state, counts, empty-list sentence, notes')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          if (!blocks.length) throw new Error('no script blocks found');
+          for (const b of blocks) new Function(b[1]);   // parses, does not run
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.5: the birthdays card reports what FamTM actually holds"
+          git push

@@ -31,7 +31,7 @@ android {
         // number, which meant a build from a later run carried a higher versionCode than the
         // release cut before it - and Android refuses such a release as a downgrade. The code is
         // computed from the name and only ever goes up: 1.6.3 -> 10603.
-        versionName = "1.9.7"
+        versionName = "1.9.8"
         versionCode = versionName!!.split(".").let { p ->
             p[0].toInt() * 10_000 + p[1].toInt() * 100 + p[2].toInt()
         }

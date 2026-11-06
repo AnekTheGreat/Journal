@@ -152,7 +152,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.5";
+const JOURNAL_PAGE = "1.9.6";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -224,8 +224,7 @@ const JOURNAL_PAGE = "1.9.5";
       ? '<div class="month">Today</div>' + todays.map(function (p) { return planRow(p, "today"); }).join("")
       : "";
     if (!S.entries.length) {
-      v.innerHTML = top + '<div class="empty">This journal is waiting.<br>Tap ＋ to write today.</div>' +
-        othersCard();
+      v.innerHTML = top + '<div class="empty">This journal is waiting.<br>Tap ＋ to write today.</div>';
       return;
     }
     var h = "", y = null, m = null;
@@ -235,7 +234,9 @@ const JOURNAL_PAGE = "1.9.5";
       if (d.getMonth() !== m) { m = d.getMonth(); h += '<div class="month">' + MONTHS[m] + '</div>'; }
       h += card(e);
     });
-    v.innerHTML = top + h + othersCard();
+    // No other-apps card here: the journal's own list ends with the journal. It stays in Plans,
+    // under the birthdays and the plans, where it is being looked for.
+    v.innerHTML = top + h;
   }
 
   // ---- the calendar ----
@@ -512,6 +513,14 @@ const JOURNAL_PAGE = "1.9.5";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "1.9.6": {
+      date: "6 November 2026",
+      title: "The journal ends with the journal",
+      notes: [
+        "The card offering the other apps is gone from the journal's list. Writing an entry now ends with the entries, not with a shelf of other apps.",
+        "It is still in Plans, under the plans and the birthdays, where someone is looking for what else there is to open."
+      ]
+    },
     "1.9.5": {
       date: "6 November 2026",
       title: "The birthdays card says what FamTM actually holds",

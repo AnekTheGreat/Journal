@@ -7,6 +7,22 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.6 — November 6, 2026
+
+**The other-apps card leaves the journal list and stays in Plans**
+
+### Changed
+- **No other-apps card under the entries.** The journal's own list drew the card for SideCut, FamTM
+  and the rest after the last entry, so every list ended with a shelf of other apps. The list now
+  ends with the journal itself.
+- **Plans keeps it.** The same card is still at the bottom of Plans, where the plans and the
+  birthdays are, so nothing became unreachable.
+
+### Unchanged
+- The birthdays still add themselves, the rose colour in the calendar and the provider back to FamTM
+  are as they were in 1.9.5.
+
+
 ## 1.9.5 — November 6, 2026
 
 **The birthdays card reports what FamTM actually holds**

@@ -1,0 +1,90 @@
+name: Apply 1.9.9
+
+# One-shot: applies dev/patch-199.py, proves it is idempotent and that the welcome, the tour and the
+# Guide are what it says, and commits it. Page only - no APK, so this ships over the air.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-199
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-199.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-199.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-199.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          probes = [
+              ('const JOURNAL_PAGE = "1.9.9";', 'the page does not say 1.9.9'),
+              ('"1.9.9": {', "the What's New notes have no 1.9.9 entry"),
+              ('<div id="hello" class="hide"></div>', 'there is no welcome overlay'),
+              ('function showHello()', 'there is no welcome'),
+              ('function drawTour()', 'there is no tour'),
+              ('function closeTour()', 'the tour cannot be closed'),
+              ('var TOUR = [', 'the tour has no steps'),
+              ('var GUIDE = [', 'the guide has no list'),
+              ('["guide", "Guide"]', 'there is no Guide tab'),
+              ('data-setdo="tour"', 'the guide cannot replay the tour'),
+              ('data-setdo="hello"', 'the guide cannot bring the welcome back'),
+              ('if (!helloSeen()) showHello();', 'a first launch does not open on the welcome'),
+              ('if (S.tour >= 0) { closeTour(); return true; }', 'back does not close the tour'),
+              ('.hello-card{max-width', 'the welcome has no styles'),
+              ('.dots .dot.on', 'the tour has no progress dots'),
+              ('<button id="hellogo" class="hello-go">', 'the welcome has no way into the tour'),
+              ('<button id="tnext" class="go">', 'the tour has no Next'),
+          ]
+          for probe, why in probes:
+              if probe not in page:
+                  sys.exit(why)
+          # The welcome has to come before the notes, or a new phone meets two popups at once.
+          boot = page[page.index('function start()'):]
+          boot = boot[:boot.index('function pickTab')]
+          if boot.index('showHello()') > boot.index('showWhatsNew()'):
+              sys.exit("the welcome does not come before What's New")
+          if '## 1.9.9' not in open('PATCH_NOTES.md', encoding='utf-8').read():
+              sys.exit('PATCH_NOTES has no 1.9.9 entry')
+          tour = page[page.index('var TOUR = ['):]
+          tour = tour[:tour.index('];')]
+          if tour.count('{ t:') != 5:
+              sys.exit('the tour has ' + str(tour.count('{ t:')) + ' steps, not 5')
+          print('1.9.9: welcome, a 5-step tour, a Guide tab, and no second popup on a first launch')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.9: a welcome, a tour, and a Guide under the gear"
+          git push

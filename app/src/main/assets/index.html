@@ -185,7 +185,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.9";
+const JOURNAL_PAGE = "1.9.10";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -548,6 +548,15 @@ const JOURNAL_PAGE = "1.9.9";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "1.9.10": {
+      date: "6 November 2026",
+      title: "My Hub is off the Other apps list",
+      notes: [
+        "Other apps, and the card that leads to it, list the three apps beside this one that a tap can install: FamTM, SideCut and MeasureT. My Hub has no store page, so tapping it opened somewhere that could not install anything.",
+        "The Guide's line for Other apps says the same three.",
+        "This one is in the page: it arrives the next time the app opens, with nothing to install."
+      ]
+    },
     "1.9.9": {
       date: "6 November 2026",
       title: "A welcome, a tour, and a Guide under the gear",
@@ -771,18 +780,17 @@ const JOURNAL_PAGE = "1.9.9";
   // other apps but cannot choose where a tap goes.
   var OTHERS = [
     ["famtm", "FamTM", "The family tree in your pocket"],
-    ["myhub", "My Hub", "One screen for the apps you use most"],
     ["sidecut", "SideCut", "A music player with its own equaliser"],
     ["measuret", "MeasureT", "Elevation, location, level, converter and currency"]
   ];
 
   function othersCard() {
     return '<div class="support" data-apps="1"><div><div class="s1">Check out the other apps</div>' +
-      '<div class="s2">FamTM, My Hub, SideCut and MeasureT.</div></div><div class="h">›</div></div>';
+      '<div class="s2">FamTM, SideCut and MeasureT.</div></div><div class="h">›</div></div>';
   }
 
   function showOthers() {
-    var h = '<h2>Other apps</h2><p>Four more, made the same way and free the same way.</p>';
+    var h = '<h2>Other apps</h2><p>Three more, made the same way and free the same way.</p>';
     OTHERS.forEach(function (a) {
       h += '<button class="pick" data-app="' + a[0] + '">' + esc(a[1]) + '<i>' + esc(a[2]) + '</i></button>';
     });
@@ -1036,7 +1044,7 @@ const JOURNAL_PAGE = "1.9.9";
     ["Transfer", "One file holds every journal. Restoring asks first, because it replaces them."],
     ["Updates", "New screens arrive on open. Check for updates asks now, and What's New says what changed."],
     ["Support", "The tip, and the release notes in a browser. Nothing is locked behind it."],
-    ["Other apps", "FamTM, My Hub, SideCut and MeasureT - the apps beside this one."]
+    ["Other apps", "FamTM, SideCut and MeasureT - the apps beside this one."]
   ];
 
   function helloSeen() { try { return localStorage.getItem("ujournal.hello") === "1"; } catch (e) { return true; } }
@@ -1107,7 +1115,6 @@ const JOURNAL_PAGE = "1.9.9";
   // app, so a page that arrives over the air can list them but cannot choose where a tap goes.
   var SETAPPS = [
     ["famtm", "FamTM", "The family tree in your pocket"],
-    ["myhub", "My Hub", "One screen for the apps you use most"],
     ["sidecut", "SideCut", "A music player with its own equaliser"],
     ["measuret", "MeasureT", "Elevation, location, level, converter and currency"]
   ];

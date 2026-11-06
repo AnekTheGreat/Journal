@@ -7,6 +7,16 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.10 — November 6, 2026
+
+**My Hub is off the Other apps list.**
+
+- Other apps, and the card in Support that leads to it, list the three apps beside this one
+  that a tap can install: FamTM, SideCut and MeasureT. My Hub has no store page, so a tap on
+  it went somewhere that could not install anything.
+- The Guide's line for Other apps says the same three.
+- This one is in the page: it arrives the next time the app opens, with nothing to install.
+
 ## 1.9.9 — November 6, 2026
 
 **A welcome, a tour, and a Guide under the gear.**

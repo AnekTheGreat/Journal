@@ -1,0 +1,62 @@
+name: Apply 1.9.6
+
+# One-shot: applies dev/patch-196.py, checks it, commits it. release.yml with 1.9.6 cuts it after.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-196
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch
+        run: python3 dev/patch-196.py
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          for need in ('const JOURNAL_PAGE = "1.9.6";', '"1.9.6": {', 'v.innerHTML = top + h;',
+                       '$("view").innerHTML = h + othersCard();'):
+              if need not in page:
+                  sys.exit('the page is missing %r' % need)
+          between = page.split('function drawList')[1].split('function drawPlans')[0]
+          if 'othersCard()' in between:
+              sys.exit('the journal list still draws the other-apps card')
+          g = open('app/build.gradle.kts', encoding='utf-8').read()
+          if 'versionName = "1.9.6"' not in g:
+              sys.exit('versionName is not 1.9.6')
+          if '## 1.9.6 — November 6, 2026' not in open('PATCH_NOTES.md', encoding='utf-8').read():
+              sys.exit('PATCH_NOTES has no 1.9.6 entry')
+          print('1.9.6: list ends with the journal, Plans keeps the card')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          if (!blocks.length) throw new Error('no script blocks found');
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.6: the other-apps card leaves the journal list and stays in Plans"
+          git push

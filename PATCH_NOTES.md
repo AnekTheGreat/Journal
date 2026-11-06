@@ -7,6 +7,28 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.4 — November 6, 2026
+
+**Birthdays add themselves, and a birthday is rose rather than tan**
+
+### Changed
+- **The birthdays arrive without a tap.** The page reads FamTM when the journal opens and whenever
+  Plans is opened, and adds every name and day that is not in the journal yet. It is the same call
+  the card made, so an existing birthday is still never added twice, and the read is bounded to once
+  every thirty seconds so a tab change cannot repeat it.
+- **The card in Plans is a status line now.** It reads Following FamTM with the number of birthdays
+  held, and keeps the three-way answer - not installed, installed but unreadable, or N new - when the
+  list cannot be read.
+- **A birthday has its own colour in the calendar.** Days with a journal entry keep the tan fill; a
+  birthday is filled rose, and a day with both stays rose with the dot that means a plan. A key under
+  the grid names the two colours.
+
+### Unchanged
+- Only living people are in FamTM's list, so only living people arrive. Nothing is uploaded, the
+  provider here still publishes this journal's birthdays back to FamTM, and the plan sheet, the
+  durations and the tip heart are as they were in 1.9.3.
+
+
 ## 1.9.3 — November 6, 2026
 
 **The birthdays card now says which of the three things happened**

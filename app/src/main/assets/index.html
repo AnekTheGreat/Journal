@@ -13,7 +13,7 @@
   half-finished file or an error page can never become the journal.
 -->
 <style>
-:root{--bg:#F4EBDD;--card:#FBF6EC;--tan:#C8AD8D;--sand:#E6D5BC;--ink:#4A3F35;--muted:#9C8B77}
+:root{--bg:#F4EBDD;--card:#FBF6EC;--tan:#C8AD8D;--sand:#E6D5BC;--ink:#4A3F35;--muted:#9C8B77;--rose:#BE8681}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:-apple-system,Roboto,system-ui,sans-serif}
 body{display:flex;flex-direction:column}
@@ -85,8 +85,17 @@ nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;ma
 .dow span{text-align:center;color:var(--muted);font-size:11px;padding:4px 0}
 .grid button{aspect-ratio:1;border:0;background:none;border-radius:50%;color:var(--ink);font-size:15px;position:relative}
 .grid button.has{background:var(--tan);color:#fff}
+/* A birthday is not a journal entry: it keeps its own colour, so a day someone was born on can be
+   told from a day something was written about. Rose sits after the tan rule so a day with both is
+   drawn rose, and the dot that means a plan keeps its white. */
+.grid button.bd{background:var(--rose);color:#fff}
+.grid button.bd.pl::after{background:#fff}
 .grid button.pl::after{content:"";position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:2px;background:var(--tan)}
 .grid button.has.pl::after{background:#fff}
+.cal-key{display:flex;gap:18px;justify-content:center;color:var(--muted);font-size:11.5px;padding:12px 0 2px}
+.cal-key i{display:inline-block;width:9px;height:9px;border-radius:5px;margin-right:6px;vertical-align:1px}
+.cal-key .k-tan{background:var(--tan)}
+.cal-key .k-rose{background:var(--rose)}
 .today{text-align:center;padding:14px}
 .today button{background:none;border:0;color:var(--muted)}
 #day{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column}
@@ -143,7 +152,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.3";
+const JOURNAL_PAGE = "1.9.4";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -185,6 +194,7 @@ const JOURNAL_PAGE = "1.9.3";
   }
 
   function pickTab(n) {
+    if (n === 2) autoSync();
     S.tab = n;
     draw();
   }
@@ -234,12 +244,14 @@ const JOURNAL_PAGE = "1.9.3";
     var y = S.ym.getFullYear(), m = S.ym.getMonth();
     var off = new Date(y, m, 1).getDay();
     var len = new Date(y, m + 1, 0).getDate();
-    var have = {}, planned = {};
+    var have = {}, planned = {}, bday = {};
     S.entries.forEach(function (e) { have[e.date] = 1; });
     // A plan marks the days it covers. A birthday marks its month and day in every year, which is
-    // kept apart from the full dates by having no year in the key at all.
+    // kept apart from the full dates by having no year in the key at all - and apart from a plan as
+    // well since 1.9.4: it is kept in its own map so the calendar can draw it in its own colour
+    // instead of in the tan a day with a journal entry gets.
     (S.plans || []).forEach(function (p) {
-      if (p.kind === "birthday") { planned[String(p.start).slice(5)] = 1; return; }
+      if (p.kind === "birthday") { bday[String(p.start).slice(5)] = 1; return; }
       var from = p.start, to = planEnd(p);
       for (var i = 0; i < 400; i++) {
         var k = addDays(from, i);
@@ -255,9 +267,13 @@ const JOURNAL_PAGE = "1.9.3";
     for (var n = 1; n <= len; n++) {
       var k = key(y, m, n);
       var pl = planned[k] || planned[k.slice(5)];
-      h += '<button class="' + (have[k] ? "has" : "") + (pl ? " pl" : "") + '" data-date="' + k + '">' + n + '</button>';
+      var bd = bday[k.slice(5)];
+      h += '<button class="' + (have[k] ? "has" : "") + (pl ? " pl" : "") + (bd ? " bd" : "") +
+        '" data-date="' + k + '">' + n + '</button>';
     }
-    h += '</div><div class="today"><button data-today="1">Today</button></div>';
+    h += '</div><div class="cal-key"><span><i class="k-tan"></i>Entry</span>' +
+      '<span><i class="k-rose"></i>Birthday</span></div>' +
+      '<div class="today"><button data-today="1">Today</button></div>';
     $("view").innerHTML = h;
   }
 
@@ -424,15 +440,18 @@ const JOURNAL_PAGE = "1.9.3";
   // publishes one too (see Birthdays.kt), so one tap does both halves and the card says so.
   function famtmButton() {
     var n = famtmPending();
-    var line = n > 0
-      ? (n === 1 ? "1 new birthday from FamTM" : n + " new birthdays from FamTM")
-      : n === -1
-        ? "FamTM isn't installed on this phone"
-        : n === -2
-          ? "FamTM is here, but this copy can't read it"
-          : "Bring FamTM's across, and share yours back";
+    var kept = (S.plans || []).filter(function (p) { return p.kind === "birthday"; }).length;
+    var line = n === -1
+      ? "FamTM isn't installed on this phone"
+      : n === -2
+        ? "FamTM is here, but this copy can't read it"
+        : n > 0
+          ? (n === 1 ? "1 new birthday from FamTM" : n + " new birthdays from FamTM")
+          : kept
+            ? (kept === 1 ? "Following FamTM · 1 birthday" : "Following FamTM · " + kept + " birthdays")
+            : "Following FamTM · none yet";
     return '<button class="fambtn" data-sync="1"><span class="fc">🎂</span><span>' +
-      '<b>Sync birthdays</b><i>' + line + '</i></span></button>';
+      '<b>Birthdays from FamTM</b><i>' + line + '</i></span></button>';
   }
 
   function runSync() {
@@ -459,6 +478,26 @@ const JOURNAL_PAGE = "1.9.3";
     say(msg);
   }
 
+  // 1.9.4 - nobody taps for a birthday. FamTM keeps the birthdays of everyone alive in the family and
+  // hands them over read-only; they are read when the journal opens and whenever Plans is opened, and
+  // anything not already here is added there and then. It is the same call the card makes, so the rule
+  // that a birthday is never added twice still holds - the phone does the deduplicating, this only
+  // asks. Throttled, because every tab change would otherwise ask again for a list that cannot have
+  // changed in the last few seconds.
+  var lastSync = 0;
+  function autoSync() {
+    if (!G || !G.syncBirthdays) return;                 // a browser, or an app older than 1.9.1
+    var now = Date.now();
+    if (now - lastSync < 30000) return;
+    lastSync = now;
+    var r = parse(call("syncBirthdays"), null) || {};
+    var added = parseInt(r.added, 10) || 0;
+    if (added > 0) {
+      refresh();
+      say(added === 1 ? "One birthday added from FamTM" : added + " birthdays added from FamTM");
+    }
+  }
+
   // ---- what's new ----
 
   // The notes for this screen travel inside the screen: a screen that arrives over the air brings
@@ -467,6 +506,16 @@ const JOURNAL_PAGE = "1.9.3";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "1.9.4": {
+      date: "6 November 2026",
+      title: "Birthdays add themselves, and they are not tan",
+      notes: [
+        "Nobody taps for a birthday any more. The journal reads FamTM when it opens and whenever Plans is opened, and every name and day that is not here yet is added there and then - so the birthdays of everyone alive in the family are on the calendar without being asked for.",
+        "A birthday is drawn in rose in the calendar now, not in the tan a day with a journal entry gets, so a day someone was born on can be told from a day something was written about. A day with both stays rose, keeps the dot that means a plan, and a small key under the grid says which colour is which.",
+        "The card in Plans says what is happening rather than what to do - Following FamTM, and how many birthdays are here - and still names the trouble when it cannot read the list.",
+        "Only living people are in FamTM's list, so only living people arrive. Nothing is uploaded, and a birthday already here is never added twice."
+      ]
+    },
     "1.9.3": {
       date: "6 November 2026",
       title: "The birthdays card says what it actually found",
@@ -937,7 +986,7 @@ const JOURNAL_PAGE = "1.9.3";
     toast: say
   };
 
-  window.journalResume = function () { refresh(); };
+  window.journalResume = function () { refresh(); autoSync(); };
   // onPause asks for whatever was typed to be on disk before the phone takes the screen away.
   window.journalFlush = saveNow;
   // The shell asks this before it swaps in a new screen: a day open means a draft being written, and
@@ -946,6 +995,7 @@ const JOURNAL_PAGE = "1.9.3";
 
   start();
   call("ready");
+  autoSync();
 })();
 </script>
 </body>

@@ -7,6 +7,22 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.8 — November 6, 2026
+
+**One gear, and the whole family in it**
+
+### Changed
+
+- Settings is one sheet, behind a gear in the top bar, cut into tabs: Journal, Transfer, Updates,
+  Support and Other apps. The row of tabs scrolls sideways, and keeps the place you scrolled it to
+  instead of snapping back to its first tab.
+- Other apps is the whole family in one list: FamTM, My Hub, SideCut and MeasureT.
+- The ... , heart and arrow in the top bar still work; the gear is the one place that holds
+  everything.
+
+Page only, so it arrives over the air.
+
+
 ## 1.9.7 — November 6, 2026
 
 **The birthdays arrive together**

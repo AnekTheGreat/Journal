@@ -1,0 +1,70 @@
+name: Apply 1.9.3
+
+# One-shot: applies dev/patch-193.py, checks what it wrote, and commits it.
+# The release itself is cut afterwards by release.yml with version 1.9.3.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-193
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch
+        run: python3 dev/patch-193.py
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+
+          fam = open('app/src/main/java/app/ujournal/FamTm.kt', encoding='utf-8').read()
+          for need in ('fun version(ctx: Context)', 'fun installed(ctx: Context)', 'com.FamTM.app'):
+              if need not in fam:
+                  sys.exit('FamTm.kt is missing %s' % need)
+
+          b = open('app/src/main/java/app/ujournal/Bridge.kt', encoding='utf-8').read()
+          for need in ('return@runCatching -1', 'return@runCatching -2', 'put("why"', 'put("app"'):
+              if need not in b:
+                  sys.exit('Bridge.kt is missing %s' % need)
+
+          g = open('app/build.gradle.kts', encoding='utf-8').read()
+          if 'versionName = "1.9.3"' not in g:
+              sys.exit('versionName is not 1.9.3')
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          for need in ('const JOURNAL_PAGE = "1.9.3";', '"1.9.3": {',
+                       'why === "no-read"', "FamTM isn't installed on this phone",
+                       "but this copy can't read it"):
+              if need not in page:
+                  sys.exit('the page is missing %s' % need)
+          print('version 1.9.3 in the build file, the page, its notes and the three-way card')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          if (!blocks.length) throw new Error('no script blocks found');
+          for (const b of blocks) new Function(b[1]);   // parses, does not run
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.3: the birthdays card says what it actually found"
+          git push

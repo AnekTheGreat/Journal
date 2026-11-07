@@ -1,0 +1,103 @@
+name: Apply 1.9.11
+
+# One-shot: applies dev/patch-1911.py, proves it is idempotent, that the page and build.gradle.kts
+# agree on 1.9.11, that a refused screen is remembered instead of fetched forever, and that the
+# page's "shown once" markers reach the app too. The page and the build move together, so
+# release.yml accepts the version this ships.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-1911
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-1911.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-1911.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-1911.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          gradle = open('app/build.gradle.kts', encoding='utf-8').read()
+          act = open('app/src/main/java/app/ujournal/MainActivity.kt', encoding='utf-8').read()
+          bridge = open('app/src/main/java/app/ujournal/Bridge.kt', encoding='utf-8').read()
+          notes = open('PATCH_NOTES.md', encoding='utf-8').read()
+
+          probes = [
+              ('const JOURNAL_PAGE = "1.9.11";', 'the page does not say 1.9.11'),
+              ('"1.9.11": {', "What's New has no 1.9.11 entry"),
+              ('remembered("ujournal.wn")', "What's New is not kept by the app as well"),
+              ('remember("ujournal.hello", "1")', 'the welcome is not kept by the app as well'),
+              ('ujournal-page', 'the page lost its ujournal-page marker'),
+          ]
+          for probe, why in probes:
+              if probe not in page:
+                  sys.exit(why)
+          if 'const JOURNAL_PAGE = "1.9.10"' in page:
+              sys.exit('the page still calls itself 1.9.10')
+          if 'localStorage.setItem("ujournal.wn"' in page:
+              sys.exit('a marker still lives only in the page')
+
+          if 'versionName = "1.9.11"' not in gradle:
+              sys.exit('build.gradle.kts does not carry 1.9.11 - release.yml would refuse it')
+          if '1_000_000' not in gradle:
+              sys.exit('the build number has no room for a part over two digits')
+
+          if 'pageFailedRecently' not in act:
+              sys.exit('a refused screen is not remembered - it would be fetched on every check')
+          if 'rememberPageFailure(version)' not in act:
+              sys.exit('a failed download does not record itself')
+          if 'const val RETRY_PAGE' not in act:
+              sys.exit('there is no wait before a refused screen is retried')
+
+          if 'fun markSeen(' not in bridge or 'fun seen(' not in bridge:
+              sys.exit('the app cannot keep a "shown once" marker for the page')
+
+          if '## 1.9.11' not in notes:
+              sys.exit('PATCH_NOTES has no 1.9.11 entry')
+
+          def code(v):
+              p = [int(x) for x in v.split('.')]
+              return p[0] * 1000000 + p[1] * 1000 + p[2]
+          if not code('1.9.11') > code('1.9.10'):
+              sys.exit('1.9.11 does not carry a higher build number than 1.9.10')
+
+          print('1.9.11: page and build agree, a refused screen is tried once, markers reach the app')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 1.9.11: the update that kept coming back"
+          git push

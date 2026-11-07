@@ -185,7 +185,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.10";
+const JOURNAL_PAGE = "1.9.11";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -548,6 +548,15 @@ const JOURNAL_PAGE = "1.9.10";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "1.9.11": {
+      date: "7 November 2026",
+      title: "The update that kept coming back",
+      notes: [
+        "A screen that does not arrive in one piece is not fetched again and again any more. It was asked for on every launch and every return, so an update that the release promised and the file refused looked like an update that never stopped arriving. It is tried once now, and again only when you ask, or when six hours have passed.",
+        "The welcome, the tour and these notes are remembered by the app itself as well as by the screen, so a phone that clears the screen's storage no longer meets the same popup on every launch.",
+        "No version here ends in ten: 1.9.11 follows 1.9.9. The number the phone compares builds by has room for any part now, so an update always installs over the one before it."
+      ]
+    },
     "1.9.10": {
       date: "6 November 2026",
       title: "My Hub is off the Other apps list",
@@ -653,8 +662,21 @@ const JOURNAL_PAGE = "1.9.10";
     }
   };
 
-  function wnSeen() { try { return localStorage.getItem("ujournal.wn") || ""; } catch (e) { return ""; } }
-  function wnMark() { try { localStorage.setItem("ujournal.wn", JOURNAL_PAGE); } catch (e) { } }
+  // 1.9.11 - A MARKER THAT OUTLIVES THE SCREEN'S STORAGE. What has been shown once is kept in two
+  // places: the page's own storage, where it has always been, and the app, which outlives it. A
+  // WebView that loses its storage used to lose the marker with it and put the same popup back on
+  // the next launch, which is a popup that never goes away.
+  function remembered(key) {
+    try { var mine = localStorage.getItem(key); if (mine) return mine; } catch (e) { }
+    try { var theirs = call("seen", key); return theirs ? String(theirs) : ""; } catch (e) { return ""; }
+  }
+  function remember(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) { }
+    try { call("markSeen", key, value); } catch (e) { }
+  }
+
+  function wnSeen() { return remembered("ujournal.wn"); }
+  function wnMark() { remember("ujournal.wn", JOURNAL_PAGE); }
 
   function showWhatsNew() {
     var u = WN[JOURNAL_PAGE];
@@ -1047,8 +1069,8 @@ const JOURNAL_PAGE = "1.9.10";
     ["Other apps", "FamTM, SideCut and MeasureT - the apps beside this one."]
   ];
 
-  function helloSeen() { try { return localStorage.getItem("ujournal.hello") === "1"; } catch (e) { return true; } }
-  function helloMark() { try { localStorage.setItem("ujournal.hello", "1"); } catch (e) { } }
+  function helloSeen() { return remembered("ujournal.hello") === "1"; }
+  function helloMark() { remember("ujournal.hello", "1"); }
 
   // The welcome is marked seen the moment it is shown rather than when it is closed: a phone put
   // down mid-screen should not open on the same screen again tomorrow.
@@ -1102,7 +1124,7 @@ const JOURNAL_PAGE = "1.9.10";
   function closeTour() {
     S.tour = -1;
     $("sheet").classList.add("hide");
-    try { localStorage.setItem("ujournal.tour", JOURNAL_PAGE); } catch (e) { }
+    remember("ujournal.tour", JOURNAL_PAGE);
   }
 
   // ---- settings, in one place and cut into tabs ----

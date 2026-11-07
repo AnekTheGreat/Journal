@@ -7,6 +7,17 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 1.9.11 — November 7, 2026
+
+**The update that kept coming back.**
+
+- A screen that does not arrive in one piece is no longer fetched again on every launch and every
+  return. It is tried once, and again only on a check you asked for, or after six hours.
+- The welcome, the tour and What's New are kept by the app as well as by the screen, so a cleared
+  cache cannot bring the same popup back on every launch.
+- No version here ends in ten: 1.9.11 follows 1.9.9, and the build number the phone compares has
+  room for any part, so an update always installs over the one before it.
+
 ## 1.9.10 — November 6, 2026
 
 **My Hub is off the Other apps list.**

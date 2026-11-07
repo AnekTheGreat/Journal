@@ -560,11 +560,20 @@ class MainActivity : Activity() {
         val pv = update?.pageVersion
         val pageUrl = update?.page
         if (pageUrl != null && pv != null && Updater.newer(pv, page)) {
-            // A screen is a file, not an install: there is nothing to consent to and nothing the
-            // phone has to ask, so it is taken as soon as it is found. Waiting to be tapped is most
-            // of why an update used to feel slow - the app had found it and then stood still.
-            takePage(pageUrl, pv)
-            return
+            // 1.9.11 - ONCE A VERSION, NOT ONCE A CHECK. A screen the release promises and the file
+            // refuses is not new information on the next launch, and it is not new information ten
+            // minutes later either. Fetching it again on every silent check is what an update that
+            // never stops arriving looks like from the sofa: the phone asks, the file disagrees, and
+            // the ask is made again before the reader has closed the journal. A version that failed
+            // is remembered, and only a check somebody asked for - or six hours - retries it.
+            if (!silent || !pageFailedRecently(pv)) {
+                // A screen is a file, not an install: there is nothing to consent to and nothing
+                // the phone has to ask, so it is taken as soon as it is found. Waiting to be tapped
+                // is most of why an update used to feel slow - the app had found it and then stood
+                // still.
+                takePage(pageUrl, pv)
+                return
+            }
         }
         // The shell is the other clock, and it is offered once: a release that changed the app is
         // not new information on the next launch, so tapping Later is not undone by reopening.
@@ -585,6 +594,25 @@ class MainActivity : Activity() {
 
     private fun remember(version: String) {
         getSharedPreferences(UPDATES, MODE_PRIVATE).edit().putString(OFFERED, "app:$version").apply()
+    }
+
+    /**
+     * Whether this screen version was tried and refused a short while ago. A failure is worth
+     * remembering and worth forgetting: the same page is not asked for on every launch, and a
+     * download that broke on a train is still offered once the signal is back.
+     */
+    private fun pageFailedRecently(version: String): Boolean {
+        val p = getSharedPreferences(UPDATES, MODE_PRIVATE)
+        if (p.getString(FAILED, "") != "page:$version") return false
+        return System.currentTimeMillis() - p.getLong(FAILED_AT, 0L) < RETRY_PAGE
+    }
+
+    /** A screen that did not arrive in one piece, and when: what keeps a silent check quiet. */
+    private fun rememberPageFailure(version: String) {
+        getSharedPreferences(UPDATES, MODE_PRIVATE).edit()
+            .putString(FAILED, "page:$version")
+            .putLong(FAILED_AT, System.currentTimeMillis())
+            .apply()
     }
 
     /** What the update sheet is given: what changed, and where the new page or release comes from. */
@@ -640,8 +668,11 @@ class MainActivity : Activity() {
                         { eval("JR&&JR.toast('Updated to $version')") },
                         if (quiet) 700 else 1500
                     )
-                } else if (!quiet) {
-                    eval("JR&&JR.toast('That update did not arrive in one piece')")
+                } else {
+                    // Remembered before it is reported: the next launch must not ask for the same
+                    // file again, whether or not anyone saw the toast.
+                    rememberPageFailure(version)
+                    if (!quiet) eval("JR&&JR.toast('That update did not arrive in one piece')")
                 }
             }
         }.start()
@@ -704,5 +735,10 @@ class MainActivity : Activity() {
         /** Where an app offer already seen is remembered, so a launch cannot repeat it. */
         const val UPDATES = "updates"
         const val OFFERED = "offered"
+        /** A screen version that was tried and refused, and when it was. */
+        const val FAILED = "page-failed"
+        const val FAILED_AT = "page-failed-at"
+        /** A refused screen is retried by a check of its own only after this long. */
+        const val RETRY_PAGE = 6 * 60 * 60 * 1000L
     }
 }

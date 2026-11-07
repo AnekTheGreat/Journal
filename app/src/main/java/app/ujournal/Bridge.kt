@@ -38,6 +38,20 @@ class Bridge(private val ui: MainActivity) {
     @JavascriptInterface
     fun pageVersion(): String = PageStore.running(ui)
 
+    /**
+     * 1.9.11 - what the page has already shown once, kept where a cleared WebView cannot reach it.
+     * The page still keeps its own copy; this is the one that survives the storage being cleared,
+     * which is the difference between a popup shown once and a popup that returns every launch.
+     */
+    @JavascriptInterface
+    fun seen(key: String): String =
+        ui.getSharedPreferences(SEEN, Context.MODE_PRIVATE).getString(key, "") ?: ""
+
+    @JavascriptInterface
+    fun markSeen(key: String, value: String) {
+        ui.getSharedPreferences(SEEN, Context.MODE_PRIVATE).edit().putString(key, value).apply()
+    }
+
     /** The journal's name, for the top bar. */
     @JavascriptInterface
     fun currentJournal(): String = runCatching { store.name() }.getOrDefault("")
@@ -249,6 +263,8 @@ class Bridge(private val ui: MainActivity) {
     private companion object {
         /** Where an imported birthday says it came from, so one is recognisable in the plans list. */
         const val FROM_FAMTM = "From FamTM"
+        /** The preferences the page's "shown once" markers live in, beside the page's own copy. */
+        const val SEEN = "seen"
     }
 
     private fun planJson(p: Plan): String = JSONObject()

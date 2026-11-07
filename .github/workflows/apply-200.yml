@@ -1,0 +1,139 @@
+name: Apply 2.0
+
+# One-shot: applies dev/patch-200.py, proves it is idempotent, that the page and build.gradle.kts
+# agree on 2.0, that the bar is the heart and the gear with the gear last, that the two removed
+# buttons are gone from the markup and the wiring, and that the page still boots and settings
+# still opens with the things those buttons did.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-200
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-200.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-200.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-200.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          gradle = open('app/build.gradle.kts', encoding='utf-8').read()
+          notes = open('PATCH_NOTES.md', encoding='utf-8').read()
+
+          bar = page[page.index('<header id="bar">'):]
+          bar = bar[:bar.index('</header>')]
+          print('the bar is: ' + bar.replace('><', '>\n  <'))
+
+          if 'const JOURNAL_PAGE = "2.0";' not in page:
+              sys.exit('the page does not say 2.0')
+          if '"2.0": {' not in page:
+              sys.exit("What's New has no 2.0 entry")
+          if 'const JOURNAL_PAGE = "1.9.11"' in page:
+              sys.exit('the page still calls itself 1.9.11')
+          if 'id="more"' in page or 'id="check"' in page:
+              sys.exit('a removed button is still in the bar')
+          if 'showMove' in page:
+              sys.exit('the move-to-a-new-device sheet is still in the page')
+          if '$("check").onclick' in page or '$("more").onclick' in page:
+              sys.exit('a removed button is still wired - the page would throw on load')
+          if 'id="set"' not in bar or 'id="tip"' not in bar:
+              sys.exit('the bar lost the heart or the gear')
+          if bar.rindex('id="set"') < bar.rindex('id="tip"'):
+              sys.exit('the gear is not the last button on the right')
+          if 'ujournal-page' not in page:
+              sys.exit('the page lost its ujournal-page marker')
+          if 'data-setdo="backup"' not in page or 'data-setdo="restore"' not in page:
+              sys.exit('Transfer lost its backup or restore button')
+          if 'data-setdo="check"' not in page:
+              sys.exit('Updates lost its check-for-updates button')
+
+          if 'versionName = "2.0"' not in gradle:
+              sys.exit('build.gradle.kts does not carry 2.0 - release.yml would refuse it')
+          if 'getOrElse(1) { "0" }' not in gradle or 'getOrElse(2) { "0" }' not in gradle:
+              sys.exit('a two-part version would crash the build')
+          if '## 2.0' not in notes:
+              sys.exit('PATCH_NOTES has no 2.0 entry')
+
+          def code(v):
+              p = [int(x) for x in v.split('.')] + [0, 0]
+              return p[0] * 1000000 + p[1] * 1000 + p[2]
+          if not code('2.0') > code('1.9.11'):
+              sys.exit('2.0 does not carry a higher build number than 1.9.11')
+          print('build number: 2.0 -> %d, above 1.9.11 -> %d' % (code('2.0'), code('1.9.11')))
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Boot the page, with no app behind it
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i jsdom@31 --no-audit --no-fund >/dev/null 2>&1
+          node - <<'JS'
+          const fs = require('fs');
+          const { JSDOM } = require('jsdom');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://j/' });
+          const d = dom.window.document;
+          const ids = [...d.querySelectorAll('#bar button')].map(b => b.id);
+          console.log('bar buttons: ' + ids.join(', '));
+          if (ids.length !== 2 || ids[ids.length - 1] !== 'set') {
+            console.log('::error::the bar is not the heart then the gear'); process.exit(1);
+          }
+          d.getElementById('set').click();
+          const sheet = d.getElementById('sheet');
+          const tabs = [...d.querySelectorAll('.settab')].map(b => b.textContent.trim());
+          console.log('settings opens: ' + !sheet.classList.contains('hide'));
+          console.log('settings tabs: ' + tabs.join(' | '));
+          if (sheet.classList.contains('hide') || tabs.length !== 6) {
+            console.log('::error::settings did not open with its six tabs'); process.exit(1);
+          }
+          function pane(name) {
+            const tab = [...d.querySelectorAll('.settab')].find(b => b.textContent.trim().toLowerCase() === name);
+            tab.click();
+            return d.getElementById('sheet-card').textContent.replace(/\s+/g, ' ');
+          }
+          const upd = pane('updates');
+          const tra = pane('transfer');
+          if (!/Check for updates/.test(upd)) { console.log('::error::Updates has no check'); process.exit(1); }
+          if (!/Save a backup/.test(tra) || !/Restore a backup/.test(tra)) {
+            console.log('::error::Transfer lost a button'); process.exit(1);
+          }
+          console.log('the two removed buttons are both under the gear');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          rm -rf node_modules package.json package-lock.json
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 2.0: two numbers, and a quieter bar"
+          git push

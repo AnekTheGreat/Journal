@@ -7,6 +7,20 @@ releases, so a release is also the update every installed copy is offered.
 
 
 
+## 2.0 — November 7, 2026
+
+**Two numbers, and a quieter bar.**
+
+- The version is 2.0: a major and a minor, no third number. 1.9.10 and 1.9.11 were the last of
+  the three-part numbers.
+- The top bar keeps only the heart and the gear. Backing up, moving to a new device and checking
+  for updates are all in Settings, where they already were, and the gear is the last button on the
+  right.
+- A screen that does not arrive in one piece is no longer fetched again on every launch and every
+  return. It is tried once, and again only on a check you asked for, or after six hours.
+- The welcome, the tour and What's New are kept by the app as well as by the screen, so a cleared
+  cache cannot bring the same popup back on every launch.
+
 ## 1.9.11 — November 7, 2026
 
 **The update that kept coming back.**

@@ -19,7 +19,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
 body{display:flex;flex-direction:column}
 header#bar{display:flex;align-items:center;gap:6px;padding:14px 16px 8px}
 #brand{font-family:Georgia,serif;font-size:24px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#check,#set,#more,#tip{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
+#set,#tip{background:none;border:0;color:var(--muted);font-size:20px;padding:6px 8px}
 #tip{color:var(--tan);font-size:19px}
 main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 96px}
 nav#tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--sand);padding:6px 0 8px}
@@ -169,7 +169,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 </style>
 </head>
 <body>
-<header id="bar"><div id="brand">UJournal</div><button id="set" title="Settings" aria-label="Settings">⚙</button><button id="more" title="Back up or move to a new device">⋯</button><button id="tip" title="Support UJournal">♥</button><button id="check" title="Check for updates">⟳</button></header>
+<header id="bar"><div id="brand">UJournal</div><button id="tip" title="Support UJournal">♥</button><button id="set" title="Settings" aria-label="Settings">⚙</button></header>
 <main id="view"></main>
 <div id="hello" class="hide"></div>
 <nav id="tabs" class="hide"><button id="t0" class="on">📖<span>Journal</span></button><button id="t1">📅<span>Calendar</span></button><button id="t2">🎉<span>Plans</span></button></nav>
@@ -185,7 +185,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "1.9.11";
+const JOURNAL_PAGE = "2.0";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -548,6 +548,16 @@ const JOURNAL_PAGE = "1.9.11";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+    "2.0": {
+      date: "7 November 2026",
+      title: "UJournal 2.0 - two numbers, and a quieter bar",
+      notes: [
+        "This is 2.0, and a version here is two parts from now on: a major and a minor. The third number is gone - 1.9.10 and 1.9.11 were the last of it.",
+        "The top bar keeps only the heart and the gear. Backing up, moving to a new device and checking for updates all live in Settings, where they already were, and the gear is now the last button on the right.",
+        "A screen that does not arrive in one piece is not fetched again and again any more. It is tried once, and again only when you ask, or when six hours have passed.",
+        "The welcome, the tour and these notes are remembered by the app itself as well as by the screen, so a phone that clears the screen's storage no longer meets the same popup on every launch."
+      ]
+    },
     "1.9.11": {
       date: "7 November 2026",
       title: "The update that kept coming back",
@@ -973,32 +983,10 @@ const JOURNAL_PAGE = "1.9.11";
 
   // ---- moving the journal to another phone ----
 
-  // One file holds every journal, every entry and everything attached to it. The shell writes it
-  // where the phone's own Save dialog points, so a backup can go to Downloads, a card or a cloud
-  // folder; Restore reads one back and replaces the shelf, which is why it asks twice.
-  function showMove() {
-    $("sheet-card").innerHTML =
-      '<h2>Move to a new device</h2>' +
-      '<p>One file holds every journal and everything attached to it. Save it somewhere you can ' +
-      'reach from the new phone, then choose Restore there.</p>' +
-      '<p>The file is written by the phone itself, so it goes wherever you point the Save dialog ' +
-      '&mdash; Downloads, a card, a cloud folder. Nothing is uploaded anywhere.</p>' +
-      '<div class="row"><button id="bk">Save a backup</button>' +
-      '<button id="rs" class="go">Restore a backup</button></div>' +
-      '<p style="margin-top:14px;font-size:12px">Restoring replaces every journal on this phone ' +
-      'with the ones in the file. It asks once before it does.</p>';
-    $("sheet").classList.remove("hide");
-    $("bk").onclick = function () { $("sheet").classList.add("hide"); call("backup"); };
-    $("rs").onclick = function () {
-      if (!this.getAttribute("data-armed")) {
-        this.setAttribute("data-armed", "1");
-        this.textContent = "Replace your journal?";
-        return;
-      }
-      $("sheet").classList.add("hide");
-      call("restore");
-    };
-  }
+  // 2.0 - MOVE TO A NEW DEVICE IS NOT A SHEET OF ITS OWN. Save a backup and Restore a backup are
+  // the first two buttons under the gear, in Transfer, which is where someone looking for them
+  // looks first. This used to be a third sheet behind a ⋯ in the top bar, and the bar is now the
+  // heart and the gear only.
 
   // ---- the update sheet ----
 
@@ -1244,10 +1232,8 @@ const JOURNAL_PAGE = "1.9.11";
   $("fab").onclick = function () { openDay(today()); };
   $("back").onclick = function () { closeDay(); };
   $("attach").onclick = openMenu;
-  $("more").onclick = showMove;
-  $("set").onclick = function () { showSettings(""); };
   $("tip").onclick = showTips;
-  $("check").onclick = function () { say("Checking for updates…"); call("checkUpdates"); };
+  $("set").onclick = function () { showSettings(""); };
 
   $("view").addEventListener("click", function (ev) {
     if (ev.target.closest("[data-tip]")) { showTips(); return; }

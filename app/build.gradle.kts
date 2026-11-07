@@ -31,11 +31,14 @@ android {
         // number, which meant a build from a later run carried a higher versionCode than the
         // release cut before it - and Android refuses such a release as a downgrade. The code is
         // computed from the name and only ever goes up: 1.6.3 -> 10603.
-        versionName = "1.9.11"
-        // Three digits of room per part. The old 10_000 / 100 / 1 layout gave 1.9.100 and 1.11.0
-        // the same code, and a code that does not go up is a release Android refuses to install.
+        versionName = "2.0"
+        // A version here is major.minor, so a part that is not there counts as zero instead of
+        // crashing the build. Three digits of room per part: no two versions can share a code, and
+        // a code that does not go up is a release Android refuses to install over the one before it.
         versionCode = versionName!!.split(".").let { p ->
-            p[0].toInt() * 1_000_000 + p[1].toInt() * 1_000 + p[2].toInt()
+            p[0].toInt() * 1_000_000 +
+                p.getOrElse(1) { "0" }.toInt() * 1_000 +
+                p.getOrElse(2) { "0" }.toInt()
         }
         // Where the in-app updater looks for new releases (the repo must be public).
         buildConfigField("String", "GITHUB_REPO", "\"AnekTheGreat/Journal\"")

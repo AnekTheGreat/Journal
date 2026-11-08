@@ -311,11 +311,15 @@ class Bridge(private val ui: MainActivity) {
 internal object Siblings {
     private val APPS = listOf(
         "journal" to "https://play.google.com/store/apps/details?id=app.ujournal",
-        "famtm" to "https://play.google.com/store/apps/details?id=com.FamTM.app",
-        "myhub" to "https://play.google.com/store/apps/details?id=com.myhub.app",
+        "famtm" to "https://github.com/AnekTheGreat/FamTM/releases/latest",
+        "myhub" to "https://github.com/AnekTheGreat/My-Hub/releases/latest",
         "sidecut" to "https://play.google.com/store/apps/details?id=com.SideCut.myapp",
-        // The package still carries its original Compass-EDC name; the app itself is MeasureT.
-        "measuret" to "https://play.google.com/store/apps/details?id=com.CompassEDC.myapp"
+        // The package still carries its original Compass-EDC name; the app itself is MeasureT, and
+        // its own page is where it is handed out.
+        "measuret" to "https://anekthegreat.github.io/Compass-EDC/",
+        // UNote is a page rather than a listing: the row opens it in the phone's browser, which is
+        // also where it can be added to the home screen.
+        "unote" to "https://anekthegreat.github.io/UNote/"
     )
 
     fun url(id: String): String? = APPS.firstOrNull { it.first == id }?.second

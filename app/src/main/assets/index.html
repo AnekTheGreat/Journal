@@ -185,7 +185,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.0";
+const JOURNAL_PAGE = "2.1";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -548,6 +548,15 @@ const JOURNAL_PAGE = "2.0";
   // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
   // marked read without having been put in front of the reader.
   var WN = {
+      "2.1": {
+        date: "8 November 2026",
+        title: "The whole family on the list",
+        notes: [
+          "Other apps, and the same list under Settings, now carry all five apps beside this one: My Hub, FamTM, SideCut, MeasureT and UNote. My Hub had been taken off and UNote had never been on, so the journal had the shortest shelf in the family.",
+          "The card, the sheet, the Guide's line and the tab summary all say the same five names now, so the shelf reads the same wherever you open it.",
+          "Tapping UNote does something: the shell knows its address, which it did not before. The addresses that went to store pages which are not up yet now go to the release each app installs from."
+        ]
+      },
     "2.0": {
       date: "7 November 2026",
       title: "UJournal 2.0 - two numbers, and a quieter bar",
@@ -811,18 +820,20 @@ const JOURNAL_PAGE = "2.0";
   // Names and one-liners only: the addresses live in the shell, so an over-the-air page can list the
   // other apps but cannot choose where a tap goes.
   var OTHERS = [
+    ["myhub", "My Hub", "One screen that launches the rest, and keeps each one up to date"],
     ["famtm", "FamTM", "The family tree in your pocket"],
     ["sidecut", "SideCut", "A music player with its own equaliser"],
-    ["measuret", "MeasureT", "Elevation, location, level, converter and currency"]
+    ["measuret", "MeasureT", "Elevation, location, a level and a converter"],
+    ["unote", "UNote", "Notes that link themselves, behind a PIN"]
   ];
 
   function othersCard() {
     return '<div class="support" data-apps="1"><div><div class="s1">Check out the other apps</div>' +
-      '<div class="s2">FamTM, SideCut and MeasureT.</div></div><div class="h">›</div></div>';
+      '<div class="s2">My Hub, FamTM, SideCut, MeasureT and UNote.</div></div><div class="h">›</div></div>';
   }
 
   function showOthers() {
-    var h = '<h2>Other apps</h2><p>Three more, made the same way and free the same way.</p>';
+    var h = '<h2>Other apps</h2><p>Five more, made the same way and free the same way.</p>';
     OTHERS.forEach(function (a) {
       h += '<button class="pick" data-app="' + a[0] + '">' + esc(a[1]) + '<i>' + esc(a[2]) + '</i></button>';
     });
@@ -1054,7 +1065,7 @@ const JOURNAL_PAGE = "2.0";
     ["Transfer", "One file holds every journal. Restoring asks first, because it replaces them."],
     ["Updates", "New screens arrive on open. Check for updates asks now, and What's New says what changed."],
     ["Support", "The tip, and the release notes in a browser. Nothing is locked behind it."],
-    ["Other apps", "FamTM, SideCut and MeasureT - the apps beside this one."]
+    ["Other apps", "My Hub, FamTM, SideCut, MeasureT and UNote - the apps beside this one."]
   ];
 
   function helloSeen() { return remembered("ujournal.hello") === "1"; }
@@ -1124,9 +1135,11 @@ const JOURNAL_PAGE = "2.0";
   // The apps beside this one, and the key the shell knows each one by. The addresses live in the
   // app, so a page that arrives over the air can list them but cannot choose where a tap goes.
   var SETAPPS = [
+    ["myhub", "My Hub", "One screen that launches the rest, and keeps each one up to date"],
     ["famtm", "FamTM", "The family tree in your pocket"],
     ["sidecut", "SideCut", "A music player with its own equaliser"],
-    ["measuret", "MeasureT", "Elevation, location, level, converter and currency"]
+    ["measuret", "MeasureT", "Elevation, location, a level and a converter"],
+    ["unote", "UNote", "Notes that link themselves, behind a PIN"]
   ];
 
   function showSettings(sec) {

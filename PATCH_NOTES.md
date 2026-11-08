@@ -1,3 +1,17 @@
+## 2.1 - 8 November 2026
+
+The whole family on the Other apps list.
+
+- **Five apps, not three.** My Hub, FamTM, SideCut, MeasureT and UNote: the same five the rest of
+  the family lists. My Hub had been removed in 1.9.10 for having no store page, and UNote was never
+  added.
+- **A tap that goes somewhere.** UNote's address was not in the shell, so the row could not open
+  anything even if the page had listed it. It is in the shell now, and the row opens UNote's page in
+  the phone's own browser. The other addresses open the release each app installs from, because
+  only SideCut's Play listing is live.
+- **One list, said four ways.** The card, the sheet, the Guide line and the tab summary all name the
+  same five apps.
+
 # Patch notes
 
 What changed, newest first. Every release ships as a signed APK for a phone and the same build as

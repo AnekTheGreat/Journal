@@ -1,0 +1,41 @@
+name: Apply 2.1
+
+# One-shot: applies dev/patch-21.py, proves it is idempotent, and that the page, the shell and the
+# build all agree on 2.1. The page and the build move together, so release.yml accepts the version
+# this ships.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-21
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-21.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-21.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-21.py --check
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "patch bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "nothing changed"; exit 0; }
+          git commit -m "UJournal 2.1: the whole family on the Other apps list"
+          git push

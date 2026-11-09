@@ -1,0 +1,89 @@
+name: Apply 2.2
+
+# One-shot: applies dev/patch-22.py, proves it is idempotent, that the page and build.gradle.kts
+# agree on 2.2, and that What's New can no longer come back on its own. The page and the build move
+# together, so release.yml accepts the version this ships.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-22
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-22.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-22.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-22.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          gradle = open('app/build.gradle.kts', encoding='utf-8').read()
+          notes = open('PATCH_NOTES.md', encoding='utf-8').read()
+
+          probes = [
+              ('const JOURNAL_PAGE = "2.2";', 'the page does not say 2.2'),
+              ('"2.2": {', "What's New has no 2.2 entry"),
+              ('else if (wnIsNewer()) showWhatsNew();', 'the sheet is not gated on a newer screen'),
+              ('function isNewer(a, b) {', 'there is no dotted comparison'),
+              ('ujournal-page', 'the page lost its ujournal-page marker'),
+          ]
+          for probe, why in probes:
+              if probe not in page:
+                  sys.exit(why)
+          if 'wnSeen() !== JOURNAL_PAGE' in page:
+              sys.exit('the sheet still opens whenever the version merely differs')
+          if '    wnMark();\n    var notes' not in page:
+              sys.exit('the sheet is still marked only when its button is tapped')
+          if 'const JOURNAL_PAGE = "2.1"' in page:
+              sys.exit('the page still calls itself 2.1')
+
+          if 'versionName = "2.2"' not in gradle:
+              sys.exit('build.gradle.kts does not carry 2.2 - release.yml would refuse it')
+          if '## 2.2' not in notes:
+              sys.exit('PATCH_NOTES has no 2.2 entry - release.yml would refuse it')
+
+          def code(v):
+              p = [int(x) for x in v.split('.')]
+              return p[0] * 1000000 + p[1] * 1000 + p[2]
+          if not code('2.2') > code('2.1'):
+              sys.exit('2.2 does not carry a higher build number than 2.1')
+
+          print('2.2: page and build agree, and What\'s New opens once for a newer screen')
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 2.2: What's New stops coming back"
+          git push

@@ -1,3 +1,15 @@
+## 2.2 - 9 November 2026
+
+The popups stop coming back.
+
+- **What's New opens once.** It opens only when the journal is genuinely newer than the last screen
+  it showed you, instead of whenever the version merely differed - which also meant a screen that
+  went back to an earlier copy asked again, over and over.
+- **Closed is closed.** Leaving the journal with the sheet open used to count as never having read
+  it. It counts as read the moment it appears, so the next launch is quiet.
+- **Nothing else returns either.** The welcome and the tour were already marked on the way in, and
+  they still are; the notes stay one tap away under Settings, Updates.
+
 ## 2.1 - 8 November 2026
 
 The whole family on the Other apps list.

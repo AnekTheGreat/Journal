@@ -185,7 +185,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.1";
+const JOURNAL_PAGE = "2.2";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -225,7 +225,7 @@ const JOURNAL_PAGE = "2.1";
     // A new phone starts with the welcome; anyone else gets the notes for a screen they have not
     // seen yet. Never both at once: two popups over each other is the opposite of a welcome.
     if (!helloSeen()) showHello();
-    else if (wnSeen() !== JOURNAL_PAGE) showWhatsNew();
+    else if (wnIsNewer()) showWhatsNew();
   }
 
   function pickTab(n) {
@@ -544,10 +544,20 @@ const JOURNAL_PAGE = "2.1";
 
   // The notes for this screen travel inside the screen: a screen that arrives over the air brings
   // its own account of what changed, so nothing has to be fetched to read it. One entry per screen
-  // version, and the version whose notes have been shown is kept on the phone - marked when the
-  // popup is CLOSED, by its button or the phone's back, not when it is built, so the notes cannot be
-  // marked read without having been put in front of the reader.
+  // version, and the version whose notes have been shown is kept on the phone. 2.2 - marked the
+  // moment the sheet APPEARS rather than when it is closed: a phone swiped away with the sheet open
+  // counted as never having read it, and the same notes came back on the next launch. It is on the
+  // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.2": {
+      date: "9 November 2026",
+      title: "What's New stops coming back",
+      notes: [
+        "The sheet opens once now, and only when the journal is really newer than the last screen it showed you. It used to open whenever the version merely differed, which included going back to an earlier screen, so the same notes could arrive again and again.",
+        "Closing the journal while the sheet was open counted as never having read it, so the next launch put it back. It counts as read the moment it appears.",
+        "The welcome and the tour are remembered the same way, so nothing that has been shown once returns by itself."
+      ]
+    },
       "2.1": {
         date: "8 November 2026",
         title: "The whole family on the list",
@@ -694,12 +704,34 @@ const JOURNAL_PAGE = "2.1";
     try { call("markSeen", key, value); } catch (e) { }
   }
 
+  // 2.2 - ONLY A SCREEN THAT IS REALLY NEWER. "Not equal" also means "older", and the shell can
+  // hand the page an earlier copy than the one it saw last time, so the same notes came back. A
+  // dotted comparison answers the only question worth asking: is this newer than what was seen?
+  function verNum(v) {
+    return String(v || "").split(".").map(function (x) { return parseInt(x, 10) || 0; });
+  }
+  function isNewer(a, b) {
+    var x = verNum(a), y = verNum(b), n = Math.max(x.length, y.length);
+    for (var i = 0; i < n; i++) {
+      var p = x[i] || 0, q = y[i] || 0;
+      if (p !== q) return p > q;
+    }
+    return false;
+  }
+  function wnIsNewer() {
+    var seen = wnSeen();
+    if (!seen) return true;
+    return isNewer(JOURNAL_PAGE, seen);
+  }
+
   function wnSeen() { return remembered("ujournal.wn"); }
   function wnMark() { remember("ujournal.wn", JOURNAL_PAGE); }
 
   function showWhatsNew() {
     var u = WN[JOURNAL_PAGE];
     if (!u) return;
+    // 2.2 - read the moment it is on screen, not when its button is tapped.
+    wnMark();
     var notes = (u.notes || []).map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("");
     $("sheet-card").innerHTML = '<h2>What&rsquo;s New</h2>' +
       '<p>UJournal ' + esc(JOURNAL_PAGE) + ' &middot; ' + esc(u.date) + '<br>' + esc(u.title) + '</p>' +

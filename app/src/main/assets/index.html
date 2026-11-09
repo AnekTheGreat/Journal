@@ -162,6 +162,12 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 .dots{display:flex;gap:6px;justify-content:center;margin:14px 0 0}
 .dots .dot{width:7px;height:7px;border-radius:4px;background:var(--sand)}
 .dots .dot.on{background:var(--tan);width:18px}
+#vid{position:fixed;inset:0;background:#000;z-index:70;display:flex;align-items:center;justify-content:center}
+#vid.hide{display:none}
+#vid video{width:100%;max-height:100%;background:#000}
+#vid .vclose{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:16px;padding:9px 16px;font-family:inherit;font-size:14px}
+#vid .vopen{position:absolute;right:14px;bottom:16px;background:none;border:0;color:#e9e2d6;font-family:inherit;font-size:13px;text-decoration:underline;padding:8px}
+#vid .vname{position:absolute;left:16px;right:130px;bottom:22px;color:#e9e2d6;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet-card .tourskip{display:block;width:100%;border:0;background:none;color:var(--muted);font-size:13px;padding:14px 0 0;border-radius:0}
 .gline{border-top:1px solid var(--sand);padding:10px 2px}
 .gline b{display:block;font-size:14.5px;font-weight:600}
@@ -182,10 +188,11 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="recbar" class="hide"></div>
 <div id="sheet" class="hide"><div class="sheet-card" id="sheet-card"></div></div>
 <div id="menu" class="hide"><div class="menu-card" id="menu-card"></div></div>
+<div id="vid" class="hide"><video id="vp" controls playsinline preload="metadata"></video><button class="vclose" id="vclose">Done</button><div class="vname" id="vname"></div><button class="vopen" id="vopen">Open in another app</button></div>
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.2";
+const JOURNAL_PAGE = "2.3";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -225,7 +232,17 @@ const JOURNAL_PAGE = "2.2";
     // A new phone starts with the welcome; anyone else gets the notes for a screen they have not
     // seen yet. Never both at once: two popups over each other is the opposite of a welcome.
     if (!helloSeen()) showHello();
-    else if (wnIsNewer()) showWhatsNew();
+    else if (wnIsNewer()) askWhatsNew();
+  }
+
+  // 2.3 - NOT OVER SOMETHING BEING WRITTEN. The notes belong to the moment the journal opens. If a day
+  // is already open, or a field has the keyboard, they wait for the day to be closed instead of
+  // landing on the first sentence.
+  function askWhatsNew() {
+    var a = document.activeElement;
+    var busy = S.day || (a && /^(INPUT|TEXTAREA)$/.test(a.tagName));
+    if (busy) { S.wnWait = 1; return; }
+    showWhatsNew();
   }
 
   function pickTab(n) {
@@ -549,6 +566,15 @@ const JOURNAL_PAGE = "2.2";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.3": {
+      date: "9 November 2026",
+      title: "Videos play, and nothing reloads under your hands",
+      notes: [
+        "A video attached to a day now plays inside the journal: tap it and it opens full screen over the page, with the phone's own play and pause. It used to be handed to another app, which on a phone with no video player meant a toast and a file nobody could watch. Open in another app is still there under the player.",
+        "The screen no longer restarts while you are writing. A check that finished a second after launch used to load the new screen under the keyboard and then put this sheet on top of it; a quiet update now waits for the next time the journal opens, and an update you ask for still applies at once.",
+        "What's New waits for the day to close if a day is already open, rather than landing on the first sentence."
+      ]
+    },
     "2.2": {
       date: "9 November 2026",
       title: "What's New stops coming back",
@@ -889,7 +915,8 @@ const JOURNAL_PAGE = "2.2";
     var h = "";
     e.atts.forEach(function (a) {
       var mime = a.mime || "";
-      h += '<div class="tile" data-open="' + esc(a.name) + '">';
+      var vp = /^video\//.test(mime) ? ' data-vid="' + esc(a.path || "") + '"' : "";
+      h += '<div class="tile" data-open="' + esc(a.name) + '"' + vp + '">';
       if (/^image\//.test(mime)) h += '<img src="' + fileUrl(a.path) + '" alt="">';
       else {
         h += '<div class="ico">' + (/^video\//.test(mime) ? "🎥" : /^audio\//.test(mime) ? "🎵" : "📄") + '</div>';
@@ -947,6 +974,7 @@ const JOURNAL_PAGE = "2.2";
     $("day").classList.add("hide");
     $("fab").style.display = "block";
     refresh();
+    if (S.wnWait) { S.wnWait = 0; askWhatsNew(); }
     return was;
   }
 
@@ -965,9 +993,48 @@ const JOURNAL_PAGE = "2.2";
         return;
       }
       var o = ev.target.closest("[data-open]");
-      if (o) call("open", S.day, o.getAttribute("data-open"));
+      if (o) {
+        var vpath = o.getAttribute("data-vid");
+        if (vpath !== null) { playVideo(vpath, o.getAttribute("data-open")); return; }
+        call("open", S.day, o.getAttribute("data-open"));
+      }
     });
   }
+
+  // ---- playing a video, here ----
+
+  // 2.3 - A VIDEO PLAYS WHERE IT IS. A tile used to hand the file to whatever app claimed to open it,
+  // and that was the end of the story when nothing on the phone did: a toast, and an attachment nobody
+  // could watch. The journal has the file and the page can draw a player, so a video opens full screen
+  // over the day with the phone's own controls and nothing installed. Open in another app stays one
+  // tap away for anyone who wants it.
+  function playVideo(path, name) {
+    var v = $("vp");
+    if (!v) return;
+    $("vname").textContent = name || "Video";
+    try { v.pause(); } catch (e) { }
+    v.src = fileUrl(path);
+    $("vid").classList.remove("hide");
+    try { v.currentTime = 0; } catch (e) { }
+    var p = v.play();
+    if (p && p.catch) p.catch(function () { });
+  }
+
+  function closeVideo() {
+    var v = $("vp");
+    if (!v) return;
+    try { v.pause(); } catch (e) { }
+    v.removeAttribute("src");
+    try { v.load(); } catch (e) { }
+    $("vid").classList.add("hide");
+  }
+
+  $("vclose").onclick = function () { closeVideo(); };
+  $("vopen").onclick = function () {
+    var n = $("vname").textContent;
+    closeVideo();
+    if (n) call("open", S.day, n);
+  };
 
   // ---- attaching ----
 
@@ -1304,6 +1371,7 @@ const JOURNAL_PAGE = "2.2";
 
   // The shell asks this before it closes: true means the page handled the back itself.
   window.journalBack = function () {
+    if (!$("vid").classList.contains("hide")) { closeVideo(); return true; }
     if (S.tour >= 0) { closeTour(); return true; }
     if (S.hello) { closeHello(); return true; }
     if (S.wn) { closeWhatsNew(); return true; }

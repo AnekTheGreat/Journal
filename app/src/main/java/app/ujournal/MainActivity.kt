@@ -2,6 +2,7 @@ package app.ujournal
 
 import android.Manifest
 import android.app.Activity
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -349,6 +350,8 @@ class MainActivity : Activity() {
         val i = Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, a.mime)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // 2.3 - the grant travels with the file for players that read the clip, not the intent.
+        i.clipData = ClipData.newRawUri(a.name, uri)
         try {
             startActivity(i)
         } catch (e: Exception) {
@@ -654,6 +657,20 @@ class MainActivity : Activity() {
     }
 
     /**
+     * 2.3 - Is a day open? Only the page knows, so it is asked. A quiet update uses this to
+     * stay silent while someone is writing: the file is already saved, so saying so can wait.
+     */
+    private fun editing(and: (Boolean) -> Unit) {
+        if (!::web.isInitialized) {
+            and(false)
+            return
+        }
+        web.evaluateJavascript("(window.journalEditing&&journalEditing())?'y':'n'") { answer ->
+            and(answer != null && answer.contains("y"))
+        }
+    }
+
+    /**
      * Fetch the page a release published and put it in place. Nothing is installed and no package is
      * touched: this writes one file into the app's own storage and loads it.
      */
@@ -663,11 +680,19 @@ class MainActivity : Activity() {
             val saved = bytes != null && PageStore.save(this, bytes, version)
             runOnUiThread {
                 if (saved) {
-                    loadPage()
-                    main.postDelayed(
-                        { eval("JR&&JR.toast('Updated to $version')") },
-                        if (quiet) 700 else 1500
-                    )
+                    if (quiet) {
+                        // 2.3 - A QUIET UPDATE WAITS FOR THE NEXT START. Loading the page here is what
+                        // made the journal blink and begin again a second after it opened - the moment
+                        // someone had started to type - and the fresh screen then put its What's New
+                        // sheet over the keyboard. The file is already in place, so the next start draws
+                        // it: nothing on screen is replaced under a pen.
+                        editing { busy ->
+                            if (!busy) eval("JR&&JR.toast('UJournal $version opens next time')")
+                        }
+                    } else {
+                        loadPage()
+                        main.postDelayed({ eval("JR&&JR.toast('Updated to $version')") }, 1500)
+                    }
                 } else {
                     // Remembered before it is reported: the next launch must not ask for the same
                     // file again, whether or not anyone saw the toast.

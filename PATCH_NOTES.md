@@ -1,3 +1,18 @@
+## 2.3 - 9 November 2026
+
+Videos play in the journal, and a quiet update stops interrupting.
+
+- **A video opens where it is.** Tapping one used to hand the file to another app; on a phone with
+  nothing that plays MP4s that was a toast and an attachment nobody could watch. It now opens full
+  screen over the day with the phone's own controls, and **Open in another app** is still one tap
+  away.
+- **No more blinking under the first sentence.** A check that finished just after launch used to
+  load the new screen underneath the keyboard, and the fresh screen then put What's New over the
+  words being typed. A quiet update now waits for the next start, which is what the app always
+  promised; an update you ask for still swaps straight away.
+- **The notes wait for the day.** If a day is open, or a field has the keyboard, What's New arrives
+  when the day is closed rather than on top of it.
+
 ## 2.2 - 9 November 2026
 
 The popups stop coming back.

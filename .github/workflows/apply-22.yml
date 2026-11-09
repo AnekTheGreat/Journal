@@ -62,7 +62,10 @@ jobs:
 
           def code(v):
               p = [int(x) for x in v.split('.')]
+              while len(p) < 3:
+                  p.append(0)
               return p[0] * 1000000 + p[1] * 1000 + p[2]
+
           if not code('2.2') > code('2.1'):
               sys.exit('2.2 does not carry a higher build number than 2.1')
 

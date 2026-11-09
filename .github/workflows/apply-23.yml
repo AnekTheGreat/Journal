@@ -1,0 +1,94 @@
+name: Apply 2.3
+
+# One-shot: applies dev/patch-23.py, proves it is idempotent, that the page and build.gradle.kts
+# agree on 2.3, that a video has a player in the page, and that a quiet update no longer reloads the
+# screen under the reader. The page and the build move together, so release.yml accepts this.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-23
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-23.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-23.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-23.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          gradle = open('app/build.gradle.kts', encoding='utf-8').read()
+          notes = open('PATCH_NOTES.md', encoding='utf-8').read()
+          activity = open('app/src/main/java/app/ujournal/MainActivity.kt', encoding='utf-8').read()
+
+          probes = [
+              ('const JOURNAL_PAGE = "2.3";', 'the page does not say 2.3'),
+              ('"2.3": {', "What's New has no 2.3 entry"),
+              ('<video id="vp" controls playsinline', 'the page has no player'),
+              ('function playVideo(path, name) {', 'there is no playVideo'),
+              ('data-vid="', 'a video tile does not name its file'),
+              ('function askWhatsNew() {', 'the notes are not gated on an open day'),
+              ('ujournal-page', 'the page lost its ujournal-page marker'),
+              ('if (quiet) {', 'a quiet update still swaps the screen'),
+              ('private fun editing(and: (Boolean) -> Unit)', 'there is no typing guard'),
+          ]
+          for probe, why in probes:
+              if probe not in page and probe not in activity:
+                  sys.exit(why)
+
+          if 'loadPage()\n                    main.postDelayed' in activity:
+              sys.exit('a quiet update can still reload the page under the reader')
+
+          if 'versionName = "2.3"' not in gradle:
+              sys.exit('build.gradle.kts does not carry 2.3 - release.yml would refuse it')
+          if '## 2.3' not in notes:
+              sys.exit('PATCH_NOTES has no 2.3 entry - release.yml would refuse it')
+
+          def code(v):
+              p = [int(x) for x in v.split('.')]
+              while len(p) < 3:
+                  p.append(0)
+              return p[0] * 1000000 + p[1] * 1000 + p[2]
+
+          if not code('2.3') > code('2.2'):
+              sys.exit('2.3 does not carry a higher build number than 2.2')
+
+          print("2.3: page and build agree, videos play here, and a quiet update waits")
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 2.3: videos play, and a quiet update stops interrupting"
+          git push

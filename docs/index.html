@@ -3,131 +3,125 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UJournal — Privacy Policy</title>
-<meta name="description" content="Privacy policy for the UJournal Android app: your entries stay on your phone, and the microphone is only used while you record.">
+<title>UJournal — a quiet journal, one entry a day</title>
+<meta name="description" content="UJournal is a paper-toned Android journal: one entry a day, a timeline, a calendar, photos, video and voice, kept as plain files on your phone.">
 <style>
-  :root {
-    --ink: #1a1712;
-    --muted: #6a6259;
-    --paper: #f7f3ea;
-    --rule: #e2d9c9;
-    --accent: #7a4b1f;
-    --card: #fffdf8;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --ink: #ece7dd;
-      --muted: #a89f92;
-      --paper: #16130f;
-      --rule: #322b23;
-      --accent: #e0b483;
-      --card: #1e1a15;
-    }
-  }
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0;
-    padding: 3rem 1.25rem 5rem;
-    background: var(--paper);
-    color: var(--ink);
-    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  }
-  main { max-width: 44rem; margin: 0 auto; }
-  header { border-bottom: 1px solid var(--rule); padding-bottom: 1.25rem; margin-bottom: 2rem; }
-  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; letter-spacing: -.01em; font-family: Georgia, "Times New Roman", serif; }
-  h2 { font-size: 1.15rem; margin: 2.5rem 0 .6rem; letter-spacing: -.005em; }
-  h3 { font-size: 1rem; margin: 1.5rem 0 .3rem; }
-  p, li { margin: 0 0 .85rem; }
-  ul { padding-left: 1.25rem; }
-  li { margin-bottom: .5rem; }
-  .sub { color: var(--muted); font-size: .95rem; margin: 0; }
-  .lede {
-    background: var(--card);
-    border: 1px solid var(--rule);
-    border-radius: 10px;
-    padding: 1.1rem 1.25rem;
-    margin: 0 0 2rem;
-  }
-  .lede p:last-child { margin-bottom: 0; }
-  a { color: var(--accent); }
-  code { font-size: .9em; background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: .05em .3em; }
-  footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+:root{--ink:#1a1712;--muted:#6a6259;--paper:#f7f3ea;--card:#fffdf8;--rule:#e2d9c9;--accent:#7a4b1f;--on:#fffaf2;--glow:#f0e8d9}
+@media(prefers-color-scheme:dark){:root{--ink:#ece7dd;--muted:#a89f92;--paper:#16130f;--card:#1e1a15;--rule:#322b23;--accent:#e0b483;--on:#241708;--glow:#241f18}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:62rem;margin:0 auto;padding:0 1.25rem}
+header{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--rule)}
+header .wrap{display:flex;align-items:center;gap:.75rem;height:4.25rem}
+.mark{width:2.25rem;height:2.25rem;border-radius:.6rem;background:var(--accent);color:var(--on);display:grid;place-items:center;font-weight:800;font-family:Georgia,serif;flex:none}
+nav{margin-left:auto;display:flex;gap:1.35rem;font-size:.92rem}nav a{color:var(--muted)}nav a:hover{color:var(--ink);text-decoration:none}
+@media(max-width:34rem){nav{display:none}}
+.hero{padding:4.4rem 0 3.2rem}
+h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(2.1rem,5.4vw,3.45rem);line-height:1.1;letter-spacing:-.02em;margin:0 0 1rem;max-width:24ch}
+.lede{font-size:clamp(1.02rem,2.2vw,1.17rem);color:var(--muted);max-width:46ch;margin:0 0 1.8rem}
+.cta{display:flex;flex-wrap:wrap;gap:.7rem;margin-bottom:1.5rem}
+.btn{display:inline-flex;align-items:center;padding:.8rem 1.25rem;border-radius:.7rem;font-weight:650;font-size:.95rem;border:1px solid var(--rule);background:var(--card);color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--on);border-color:transparent}
+.btn:hover{text-decoration:none;transform:translateY(-1px)}
+.facts{display:flex;flex-wrap:wrap;gap:.45rem;font-size:.83rem;color:var(--muted)}
+.fact{border:1px solid var(--rule);border-radius:99px;padding:.28rem .7rem;background:var(--card)}
+.entry{margin-top:2.6rem;background:var(--card);border:1px solid var(--rule);border-radius:1rem;padding:1.4rem 1.5rem}
+.entry .day{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.entry h4{font-family:Georgia,serif;font-weight:400;font-size:1.3rem;margin:.35rem 0 .55rem}
+.entry p{margin:0 0 .8rem;color:var(--muted);font-size:.95rem}
+.row{display:flex;gap:.5rem;margin-top:.9rem}
+.tile{width:2.6rem;height:2.6rem;border-radius:.5rem;background:var(--glow);border:1px solid var(--rule);display:grid;place-items:center;font-size:.72rem;color:var(--muted)}
+section{padding:3.5rem 0;border-top:1px solid var(--rule)}
+h2{font-family:Georgia,serif;font-weight:400;font-size:clamp(1.4rem,3vw,1.78rem);letter-spacing:-.01em;margin:0 0 .5rem}
+.sub{color:var(--muted);margin:0 0 2rem;max-width:52ch}
+.grid{display:grid;gap:1rem;grid-template-columns:repeat(3,1fr)}
+@media(max-width:52rem){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:34rem){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:.9rem;padding:1.15rem}
+.card h3{margin:0 0 .4rem;font-size:1rem;letter-spacing:-.01em}
+.card p{margin:0;color:var(--muted);font-size:.94rem}
+.strip{background:var(--card);border:1px solid var(--rule);border-radius:1rem;padding:1.5rem}
+.strip p{margin:0 0 .8rem;color:var(--muted);max-width:58ch}.strip p:last-child{margin-bottom:0}
+.strip b{color:var(--ink)}
+footer{border-top:1px solid var(--rule);padding:2.4rem 0 3.2rem;color:var(--muted);font-size:.9rem}
+.cols{display:flex;flex-wrap:wrap;gap:2rem;justify-content:space-between}
+footer ul{list-style:none;margin:.4rem 0 0;padding:0}footer li{margin-bottom:.3rem}
+code{font-size:.88em;background:var(--card);border:1px solid var(--rule);border-radius:.3rem;padding:.05em .3em}
 </style>
 </head>
 <body>
-<main>
 
-<header>
-  <h1>UJournal — Privacy Policy</h1>
-  <p class="sub">Applies to UJournal for Android, version 1.2.5 and later, including the build distributed on Google Play. Effective 4 November 2026.</p>
-</header>
+<header><div class="wrap">
+  <div class="mark">J</div><b>UJournal</b>
+  <nav><a href="#inside">Inside</a><a href="#files">Your own files</a><a href="#privacy">Privacy</a><a href="https://github.com/AnekTheGreat/Journal/releases/latest">Download</a></nav>
+</div></header>
 
-<div class="lede">
-  <p><strong>The short version: what you write in UJournal stays on your phone. There is no account, no cloud sync, no analytics and no server of ours — we cannot read your journal, and neither can anyone else through us.</strong></p>
-  <p>The app records audio only while you are holding the record dialog open, and that recording is saved as an attachment in your own entry. The one network request the app makes on its own is asking GitHub whether a newer version exists, and it contains nothing about you.</p>
+<div class="wrap hero">
+  <h1>A journal that looks like paper and keeps out of the way.</h1>
+  <p class="lede">One entry a day, on a page warm enough to read at night, with the photographs, voice memos and files that belong to that day kept beside the words. No account, no feed, nothing to scroll.</p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/AnekTheGreat/Journal/releases/latest">Download UJournal for Android</a>
+    <a class="btn" href="#inside">What's inside</a>
+  </div>
+  <div class="facts">
+    <span class="fact">Android 8 and later</span><span class="fact">One entry per day</span><span class="fact">No account</span>
+    <span class="fact">No ads, no analytics</span><span class="fact">Works offline</span><span class="fact">Plain files on the phone</span>
+  </div>
+  <div class="entry">
+    <div class="day">Tuesday, 11 November</div>
+    <h4>The first cold morning</h4>
+    <p>Wrote at the kitchen table with the window open. The boiler made its noise at six and stopped. Later: a walk that took twice as long as it should have.</p>
+    <div class="row"><div class="tile">photo</div><div class="tile">1:12</div><div class="tile">.pdf</div></div>
+  </div>
 </div>
 
-<h2>Who we are</h2>
-<p>UJournal is an independent Android app. In this policy, “we” and “us” mean the app's developer. “The app” means UJournal. You can reach us at the address in <a href="#contact">Contact</a>.</p>
+<section id="inside"><div class="wrap">
+  <h2>Three ways back into what you wrote</h2>
+  <p class="sub">The entry is the unit. Everything else — the timeline, the calendar, the attachments — is a way of finding one again.</p>
+  <div class="grid">
+    <div class="card"><h3>Timeline</h3><p>Entries grouped by year and month, newest first, each with a thumbnail of the first photograph or video in it.</p></div>
+    <div class="card"><h3>Calendar</h3><p>A month grid where the days you wrote something are filled in, so a gap in a month is visible at a glance.</p></div>
+    <div class="card"><h3>The day editor</h3><p>One page per day: a title, the words, and the attachment tiles beside them.</p></div>
+    <div class="card"><h3>Photographs and video</h3><p>Taken with the camera or picked from the phone, then copied into that day's folder.</p></div>
+    <div class="card"><h3>Sound</h3><p>A voice memo recorded inside the entry, from the phone's own microphone, saved with the day it belongs to.</p></div>
+    <div class="card"><h3>Any file</h3><p>A letter as a PDF, a document, a scan — attached and openable from the entry without leaving the journal.</p></div>
+  </div>
+</div></section>
 
-<h2>What you write, and where it goes</h2>
-<p>Your entries are ordinary files in the app's own private storage on your phone: one small file per day, with any attachments — photos, videos, audio, documents — copied in beside it. That storage belongs to the app and is not readable by other apps on your phone.</p>
-<p>Nothing is uploaded. UJournal has no account, no sign-in, no sync and no cloud storage, and it does not back your entries up to us. We have no way to see an entry, because no copy of it ever reaches us.</p>
+<section id="files"><div class="wrap">
+  <h2>Your entries are files, not a subscription</h2>
+  <p class="sub">A journal kept in a format only one app can open is a journal with an expiry date. This one writes plain files.</p>
+  <div class="strip">
+    <p><b>A folder per day.</b> Every entry is a small folder named for its date, holding a readable <code>entry.json</code> and the photographs, recordings and files that went with it — all in the app's own storage on the phone.</p>
+    <p><b>Nothing to export from.</b> No database to migrate and no service to keep paying. What the app writes is what a person could open on a computer.</p>
+    <p><b>It updates itself.</b> The screen you use is a page the app holds, so a release can replace it without an installer and a fix arrives the next time you open the journal. The update check asks for one file and carries nothing from your entries.</p>
+  </div>
+</div></section>
 
-<h3>Attachments you add</h3>
-<p>When you pick a photo, video, audio file or document, the app copies that file into its own storage so the entry keeps working even if the original is moved or deleted. When you open an attachment, the app hands it to the viewer or player you choose through Android's own sharing mechanism, which grants that app read access to that one file only.</p>
+<section id="privacy"><div class="wrap">
+  <h2>Private by construction</h2>
+  <p class="sub">No account, no analytics, no advertising, no third-party libraries watching what you write.</p>
+  <div class="strip">
+    <p>Entries, photographs, recordings and files stay in the app's storage on the phone. They are not uploaded, synced or backed up by us, because there is no server of ours to hold them.</p>
+    <p>The camera and the microphone are used only while you are taking a picture or recording a memo, and stop when you stop. The timeline, the calendar and the editor all work with the phone in flight mode.</p>
+    <p>The full statement is in the <a href="privacy.html">privacy policy</a>.</p>
+  </div>
+</div></section>
 
-<h3>The microphone</h3>
-<p>UJournal can record a voice note into an entry. The microphone is used only while you have the record dialog open and have tapped <em>Record</em>: recording starts on that tap and stops when you tap <em>Stop &amp; save</em>, cancel, or close the dialog. The recording is written as an audio file and saved as an attachment in that day's entry.</p>
-<p>The microphone permission is optional. If you decline it, everything else in the app still works — you just cannot record. No audio is ever transmitted, analysed by us, or used to identify you, and the app never listens in the background: Android shows an indicator whenever the microphone is in use, and the app has no service that could use it while closed.</p>
+<footer><div class="wrap cols">
+  <div><b>UJournal</b><ul>
+    <li>Package <code>app.ujournal</code></li>
+    <li><a href="https://github.com/AnekTheGreat/Journal/releases/latest">Releases</a></li>
+    <li><a href="privacy.html">Privacy policy</a></li>
+  </ul></div>
+  <div><b>From the same hand</b><ul>
+    <li><a href="https://anekthegreat.github.io/FamTM/">FamTM</a> — the family tree</li>
+    <li><a href="https://anekthegreat.github.io/Compass-EDC/site/">MeasureT</a> — compass and rangefinder</li>
+    <li><a href="https://anekthegreat.github.io/UNote/privacy.html">UNote</a> — the notebook</li>
+  </ul></div>
+</div></footer>
 
-<h2>What leaves your phone</h2>
-
-<h3>Checking for a new version</h3>
-<p>When the app looks for a newer release, it requests the latest release information for this app from GitHub (<code>api.github.com</code> and <code>github.com</code>). Like any web request, that one carries your IP address and standard request headers, which GitHub receives and handles under <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. The request carries no identifier for you, your phone or your installation, and it does not include anything you have written.</p>
-<p><strong>If you installed UJournal from Google Play, the app does not contact GitHub at all.</strong> It asks Google Play whether an update exists, and Play delivers it. You can also avoid the check on a sideloaded copy by not tapping <em>Check for updates</em>.</p>
-<p>Tapping an offered update opens this app's GitHub release page in your browser. From that point you are on GitHub, in your browser, under GitHub's terms — not inside UJournal.</p>
-
-<h3>The tip jar</h3>
-<p>UJournal offers a tip jar with five fixed amounts. Choosing one opens a Stripe payment page in your browser. The payment is made on Stripe's site, under <a href="https://stripe.com/privacy">Stripe's privacy policy</a>; the app never sees your card number or any payment detail, and Stripe sends nothing back to the app. Tipping unlocks nothing — the app is the same either way, and it never asks you to pay.</p>
-
-<h2>What we never do</h2>
-<ul>
-  <li>We do not collect, transmit or store your entries, recordings or personal data on any server. There is no server.</li>
-  <li>We do not use analytics, crash reporting, advertising or attribution software.</li>
-  <li>We do not sell, rent or share data with anyone, because we do not have it.</li>
-  <li>We do not read your other apps, your contacts, your location or your accounts, and the app has no permission to do so.</li>
-  <li>We do not require a name, email address, phone number or account of any kind.</li>
-  <li>We do not use your entries to train anything, and no automated system reads them.</li>
-</ul>
-
-<h2>Keeping and deleting your data</h2>
-<p>Your journal lives only on your phone, in the app's private storage.</p>
-<ul>
-  <li>To delete a day, empty its title and body and remove its attachments with the ✕ on each tile. When nothing is left in it, the app deletes that day's entry and its files.</li>
-  <li>To delete a single attachment, use the ✕ on its tile; the copied file is deleted with it.</li>
-  <li>To remove everything at once, uninstall the app. Android deletes its private storage, entries and attachments included.</li>
-  <li>To stop the app using the microphone, revoke the permission in Android Settings.</li>
-</ul>
-<p>Because we never receive your data, there is nothing for us to delete on your behalf and no request to send us. If you want to keep a copy of your writing before uninstalling, open the attachments you want to save with another app first — the entries themselves are not exported anywhere automatically.</p>
-
-<h2>Backups</h2>
-<p>UJournal allows Android's own app-backup feature. If backup is enabled on your device, Android may include the app's private storage — your entries and their attachments — in your device backup or your Google account's backup. That copy is controlled by your Google settings and by Google's privacy policy, not by us, and it is the only way an entry can leave your phone without you sending it somewhere. You can turn backup off in Android Settings, and uninstalling the app removes its data from the device.</p>
-
-<h2>Children</h2>
-<p>UJournal is a general-purpose journal and is not directed at children. It collects no personal data from anyone, of any age. A parent or guardian should be aware that the app can record audio when the microphone permission is granted.</p>
-
-<h2>Changes to this policy</h2>
-<p>If a future version of the app changes what it does with data, this page will be updated before that version is released, and the effective date above will change. The current version of this policy always lives at this address.</p>
-
-<h2 id="contact">Contact</h2>
-<p>Questions about this policy or about what the app does can go to <a href="mailto:sidecutsupport@gmail.com">sidecutsupport@gmail.com</a>, or to the issue tracker at <a href="https://github.com/AnekTheGreat/Journal/issues">github.com/AnekTheGreat/Journal</a>.</p>
-
-<footer>
-  <p>UJournal — package <code>app.ujournal</code>. This policy covers the Google Play build and the sideloaded build alike; they handle data identically apart from where they look for updates, as described above.</p>
-</footer>
-
-</main>
 </body>
 </html>

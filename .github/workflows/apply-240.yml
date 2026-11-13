@@ -1,0 +1,88 @@
+name: Apply 2.4
+
+# One-shot: applies dev/patch-240.py, proves a second run changes nothing, that the page and
+# build.gradle.kts agree on 2.4, that the writing box is no longer a fixed 200px with a 120px gap
+# under it, that the keys are handled at all, and that the page still parses. Then commits it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-240
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the patch, twice
+        run: |
+          python3 dev/patch-240.py
+          A="$(git diff | sha1sum)"
+          python3 dev/patch-240.py
+          B="$(git diff | sha1sum)"
+          if [ "$A" != "$B" ]; then echo "::error::a second run changed something"; exit 1; fi
+          echo "idempotent: the same diff after a second run"
+          python3 dev/patch-240.py --check
+
+      - name: Check what it wrote
+        run: |
+          python3 - <<'PY'
+          import sys
+          page = open('app/src/main/assets/index.html', encoding='utf-8').read()
+          gradle = open('app/build.gradle.kts', encoding='utf-8').read()
+          notes = open('PATCH_NOTES.md', encoding='utf-8').read()
+
+          if 'const JOURNAL_PAGE = "2.4";' not in page:
+              sys.exit('the page does not say 2.4')
+          if '"2.4": {' not in page:
+              sys.exit("What's New has no 2.4 entry")
+          if 'const JOURNAL_PAGE = "2.3";' in page:
+              sys.exit('the page still calls itself 2.3')
+          if 'padding:0 20px 120px' in page:
+              sys.exit('the 120px gap under the note is still there')
+          if 'min-height:200px' in page:
+              sys.exit('the writing box is still a fixed 200px')
+          if 'function watchKeys()' not in page or 'function growBody()' not in page:
+              sys.exit('the keys are still not handled')
+          if 'body.keys #day-body' not in page:
+              sys.exit('the room above the keys is not in the stylesheet')
+          if 'ujournal-page' not in page:
+              sys.exit('the page lost its ujournal-page marker')
+
+          if 'versionName = "2.4"' not in gradle:
+              sys.exit('build.gradle.kts does not carry 2.4 - release.yml would refuse it')
+          if '## 2.4' not in notes:
+              sys.exit('PATCH_NOTES has no 2.4 entry')
+
+          def code(v):
+              p = [int(x) for x in v.split('.')] + [0, 0]
+              return p[0] * 1000000 + p[1] * 1000 + p[2]
+          if not code('2.4') > code('2.3'):
+              sys.exit('2.4 does not carry a higher build number than 2.3')
+          print('build number: 2.4 -> %d, above 2.3 -> %d' % (code('2.4'), code('2.3')))
+          PY
+          node - <<'JS'
+          const fs = require('fs');
+          const html = fs.readFileSync('app/src/main/assets/index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)];
+          for (const b of blocks) new Function(b[1]);
+          console.log('page: ' + blocks.length + ' script block(s) parse');
+          JS
+
+      - name: Commit and push
+        run: |
+          git config user.name "AnekTheGreat"
+          git config user.email "anekthegreat@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already applied - nothing to commit"
+            exit 0
+          fi
+          git commit -m "UJournal 2.4: the page ends where the writing does"
+          git push

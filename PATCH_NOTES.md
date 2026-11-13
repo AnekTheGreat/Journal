@@ -1,3 +1,17 @@
+## 2.4 - 13 November 2026
+
+The page ends where the writing does, and the keys stay out of it.
+
+- **No empty box under the note.** The writing box was a fixed height whatever was in it - a short
+  day left a band of empty screen below it, a long one scrolled inside a page that was already
+  scrolling. It is now as tall as the words in it, and the page ends just under the last line.
+- **The keyboard no longer covers the words.** From Android 15 the phone lays the keys over the app
+  instead of shortening it, so the line being typed finished underneath them. While the keys are up
+  the day is as tall as the part of the screen they are not using, with a band of air under the
+  line you are on.
+- **Nothing to install.** Both of these are in the screen, which arrives over the air the next time
+  the journal opens.
+
 ## 2.3 - 9 November 2026
 
 Videos play in the journal, and a quiet update stops interrupting.

@@ -103,11 +103,17 @@ nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;ma
 .day-bar{display:flex;align-items:center;padding:8px 10px}
 .day-bar button{background:none;border:0;color:var(--ink);font-size:15px;padding:10px 12px}
 #back{color:var(--muted);flex:1;text-align:left}
-#day-body{flex:1;overflow-y:auto;padding:0 20px 120px}
+/* 2.4 - the page ends where the writing ends. A fixed 120px of padding under the note was a
+   band of empty screen below every entry; it is the room the last line needs and nothing more,
+   and the keys are kept out of the page entirely (see watchKeys below). */
+#day-body{flex:1;overflow-y:auto;padding:0 20px 22px}
 .day-date{color:var(--muted);font-size:13px;padding:2px 16px 10px}
 input.t{width:100%;border:0;background:none;font-family:Georgia,serif;font-size:27px;color:var(--ink);padding:6px 0;outline:none}
 input.nm{font-size:22px}
-textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;line-height:1.55;color:var(--ink);padding:6px 0;outline:none;resize:none;font-family:inherit}
+textarea.b{display:block;width:100%;min-height:0;height:auto;overflow:hidden;border:0;background:none;font-size:17px;line-height:1.55;color:var(--ink);padding:6px 0 10px;outline:none;resize:none;font-family:inherit}
+/* 2.4 - while the keys are up the note keeps a band of air above them, so the line being typed
+   is never the line against the keyboard. */
+body.keys #day-body{padding-bottom:max(72px,16vh)}
 .atts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:10px}
 .tile{position:relative;aspect-ratio:1;border-radius:14px;background:var(--sand);overflow:hidden}
 .tile img{width:100%;height:100%;object-fit:cover}
@@ -192,7 +198,7 @@ textarea.b{width:100%;min-height:200px;border:0;background:none;font-size:17px;l
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.3";
+const JOURNAL_PAGE = "2.4";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -566,6 +572,15 @@ const JOURNAL_PAGE = "2.3";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.4": {
+      date: "13 November 2026",
+      title: "The page ends where the writing does",
+      notes: [
+        "The day you are writing no longer sits in a box of empty screen. The box was a fixed height whatever was in it: a short entry left a band of nothing under it, and a long one scrolled inside a page that was already scrolling. It is now as tall as the words in it, and the page ends just under the last line.",
+        "The keyboard is kept out of the page. From Android 15 the phone lays the keys over the app instead of shortening it, so the line being typed finished underneath them. While the keys are up the day ends above them, with a band of air under the line you are on.",
+        "This one is in the screen, so it arrives over the air the next time the journal opens - nothing to install."
+      ]
+    },
     "2.3": {
       date: "9 November 2026",
       title: "Videos play, and nothing reloads under your hands",
@@ -942,9 +957,56 @@ const JOURNAL_PAGE = "2.3";
       '<div class="atts" id="atts">' + attsHtml(e) + '</div>';
     $("t").addEventListener("input", touchSave);
     $("b").addEventListener("input", touchSave);
+    $("b").addEventListener("input", growBody);
     $("t").addEventListener("blur", saveNow);
     $("b").addEventListener("blur", saveNow);
     bindAtts();
+    growBody();
+    watchKeys();
+  }
+
+  /* ---- 2.4: room to write ----
+     The writing box is as tall as the words in it, the page ends just under the last line, and
+     while the keys are up the day is exactly the part of the screen they are not using. */
+  function growBody() {
+    var b = $("b");
+    if (!b) return;
+    b.style.height = "auto";
+    b.style.height = Math.max(0, b.scrollHeight) + "px";
+  }
+  function keysClear() {
+    var b = $("b"), body = $("day-body");
+    if (!b || !body) return;
+    var seen = window.visualViewport
+      ? window.visualViewport.height + (window.visualViewport.offsetTop || 0)
+      : window.innerHeight;
+    var r = b.getBoundingClientRect();
+    if (r.bottom > seen - 24) body.scrollTop += r.bottom - seen + 56;
+  }
+  function watchKeys() {
+    var vv = window.visualViewport;
+    var day = $("day");
+    if (!vv || !day) return;
+    function apply() {
+      var open = S.day && !day.classList.contains("hide");
+      var cover = 0;
+      if (open && (!vv.scale || vv.scale < 1.01)) {
+        cover = Math.round(window.innerHeight - vv.height - (vv.offsetTop || 0));
+        if (cover < 60) cover = 0;
+      }
+      document.body.classList.toggle("keys", cover > 0);
+      day.style.height = cover > 0 ? (vv.height + (vv.offsetTop || 0)) + "px" : "";
+      if (cover > 0) keysClear();
+      growBody();
+    }
+    if (!watchKeys.wired) {
+      watchKeys.wired = 1;
+      vv.addEventListener("resize", apply);
+      vv.addEventListener("scroll", apply);
+      document.addEventListener("focusin", function () { setTimeout(apply, 90); });
+      document.addEventListener("focusout", function () { setTimeout(apply, 90); });
+    }
+    apply();
   }
 
   function reloadDay(date) {
@@ -969,6 +1031,8 @@ const JOURNAL_PAGE = "2.3";
 
   function closeDay() {
     saveNow();
+    if ($("day")) $("day").style.height = "";
+    document.body.classList.remove("keys");
     var was = S.day;
     S.day = null;
     $("day").classList.add("hide");

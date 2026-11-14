@@ -20,6 +20,14 @@ import java.io.File
  *  - [clear] exists because the shell watches for the first draw: a page that loads but never says
  *    it is up is thrown away and the bundled copy is drawn instead.
  *
+ * 2.4.1 - THE APK WINS BY VERSION, NOT BY CLOCK. "A new APK always wins" was decided by comparing
+ * the stored file's timestamp with the install time. That is a race the page can lose: a copy
+ * fetched from a stale URL *after* the install has a newer timestamp than the install, so it
+ * survived, and a phone running 2.4 could still draw a 1.9.6 screen - which is how a 1.9.6 "What's
+ * New" kept appearing on an app that was on 2.4. The comparison is now the version both pages name:
+ * the bundled page beats any stored copy that is older than it, and [save] refuses a download that
+ * is not newer than the page in the APK, so an out-of-date mirror can never pull a phone backwards.
+ *
  * The stored copy lives in the app's own files, is replaced by a rename so a half-written download
  * is never served, and is read once per process.
  */
@@ -49,6 +57,20 @@ object PageStore {
     fun versionOf(text: String): String? =
         Regex("JOURNAL_PAGE\\s*=\\s*[\"']([0-9][^\"']*)[\"']").find(text)?.groupValues?.get(1)
 
+    /** Dotted comparison: is [a] a later page than [b]? Missing parts count as zero. */
+    private fun newer(a: String?, b: String?): Boolean {
+        if (a == null) return false
+        if (b == null) return true
+        val x = a.split(".").map { it.trim().toIntOrNull() ?: 0 }
+        val y = b.split(".").map { it.trim().toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(x.size, y.size)) {
+            val p = x.getOrElse(i) { 0 }
+            val q = y.getOrElse(i) { 0 }
+            if (p != q) return p > q
+        }
+        return false
+    }
+
     /** The page being served right now: the stored copy when there is one, else the bundled one. */
     fun text(ctx: Context): String {
         cached?.let { return it }
@@ -64,6 +86,9 @@ object PageStore {
     private fun bundled(ctx: Context): String =
         ctx.assets.open(NAME).bufferedReader().use { it.readText() }
 
+    private fun safeBundled(ctx: Context): String? =
+        try { bundled(ctx) } catch (e: Exception) { null }
+
     /** The version running on this phone, for the update comparison. */
     fun running(ctx: Context): String = versionOf(text(ctx)) ?: "0"
 
@@ -71,6 +96,10 @@ object PageStore {
      * Take a downloaded page as the one to draw from now on. [version] is what the release
      * promised; a file that names another version, or carries no marker, is refused rather than
      * installed - the release and the page must agree about what just arrived.
+     *
+     * 2.4.1 - and it must be NEWER than the page this APK already carries. A mirror still holding
+     * an old release can answer a check with a page that would move the journal backwards; that is
+     * refused here rather than installed and then lived with.
      */
     fun save(ctx: Context, bytes: ByteArray, version: String): Boolean {
         if (bytes.isEmpty() || bytes.size > MAX) return false
@@ -81,6 +110,7 @@ object PageStore {
         }
         if (!text.contains(MARK)) return false
         if (versionOf(text) != version) return false
+        if (!newer(version, versionOf(safeBundled(ctx) ?: ""))) return false
         return try {
             val d = dir(ctx).apply { mkdirs() }
             val tmp = File(d, "$NAME.tmp")
@@ -102,11 +132,30 @@ object PageStore {
     }
 
     /**
-     * A page stored before this APK was installed is dropped: an install is newer than anything it
-     * replaced, and a screen must not outlive the code that was meant to run it.
+     * A page older than the one inside this APK is dropped, by version first and by clock second.
+     *
+     * The version check is the one that matters: the APK carries the page it was built with, so a
+     * stored copy that names an earlier version is out of date whatever its timestamp says, and a
+     * copy that names no version at all is not a page this build can trust. The timestamp rule stays
+     * underneath it for the case the versions cannot be read.
      */
     fun dropStale(ctx: Context) {
         if (!stored(ctx)) return
+
+        val storedText = try { file(ctx).readText() } catch (e: Exception) { "" }
+        val shippedText = safeBundled(ctx)
+        val storedVer = versionOf(storedText)
+        val shippedVer = versionOf(shippedText ?: "")
+
+        if (storedVer == null) {
+            clear(ctx)
+            return
+        }
+        if (shippedVer != null && newer(shippedVer, storedVer)) {
+            clear(ctx)
+            return
+        }
+
         val installed = try {
             ctx.packageManager.getPackageInfo(ctx.packageName, 0).lastUpdateTime
         } catch (e: Exception) {

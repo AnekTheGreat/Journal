@@ -31,7 +31,9 @@ android {
         // number, which meant a build from a later run carried a higher versionCode than the
         // release cut before it - and Android refuses such a release as a downgrade. The code is
         // computed from the name and only ever goes up: 1.6.3 -> 10603.
-        versionName = "2.4"
+        // 2.4.1 - the page the APK carries now beats a stored copy by version (PageStore.dropStale),
+        // so a phone that was drawing an older over-the-air screen draws the one in the code again.
+        versionName = "2.4.1"
         // A version here is major.minor, so a part that is not there counts as zero instead of
         // crashing the build. Three digits of room per part: no two versions can share a code, and
         // a code that does not go up is a release Android refuses to install over the one before it.

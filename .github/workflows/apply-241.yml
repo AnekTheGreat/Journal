@@ -1,0 +1,59 @@
+name: Apply 2.4.1 to the page
+
+# The release build refuses a page whose version disagrees with the APK's versionName:
+# "the page names 2.4 but the build names 2.4.1". So the page moves with the build.
+# Two edits: JOURNAL_PAGE and a What's New entry for what actually changed.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch the page and push
+        run: |
+          python3 - <<'PY'
+          import io, sys
+          P = 'app/src/main/assets/index.html'
+          s = io.open(P, encoding='utf-8').read()
+          if 'JOURNAL_PAGE = "2.4.1"' in s:
+              print('already applied')
+          else:
+              old = 'const JOURNAL_PAGE = "2.4";'
+              if s.count(old) != 1:
+                  sys.exit('FATAL: the page is not on 2.4')
+              s = s.replace(old, 'const JOURNAL_PAGE = "2.4.1";', 1)
+
+              anchor = '    "2.4": {'
+              if s.count(anchor) != 1:
+                  sys.exit('FATAL: no 2.4 note to put this release above')
+              entry = (
+                  '    "2.4.1": {\n'
+                  '      date: "14 November 2026",\n'
+                  '      title: "The page cannot fall behind the app",\n'
+                  '      notes: [\n'
+                  '        "A phone on 2.4 could still be drawing a 1.9.6 screen, and its What\'s New kept saying so. The app keeps a copy of the page it downloaded, and only the copy\'s clock was checked against the install: a page fetched from an out-of-date address after the install looked newer than the install, so it stayed. The copy is now checked by version, and a copy older than the one inside this build is thrown away on the next open.\n'
+                  '        ,"A download can no longer pull the journal backwards either. If a mirror still answers a check with an older page, that page is refused instead of installed - so the screen can only move forward.\n'
+                  '      ]\n'
+                  '    },\n'
+              )
+              s = s.replace(anchor, entry + anchor, 1)
+              io.open(P, 'w', encoding='utf-8').write(s)
+              print('applied: the page is 2.4.1 with this release\'s notes')
+          PY
+
+          grep -q 'JOURNAL_PAGE = "2.4.1"' app/src/main/assets/index.html
+          grep -q '"2.4.1": {' app/src/main/assets/index.html
+          node -e "const fs=require('fs');const h=fs.readFileSync('app/src/main/assets/index.html','utf8');const m=h.match(/<script>([\\s\\S]*?)<\\/script>/);if(!m)process.exit(1);new Function(m[1]);console.log('page script parses');"
+          git config user.name UJournal
+          git config user.email actions@users.noreply.github.com
+          git add app/src/main/assets/index.html
+          if git diff --cached --quiet; then echo 'nothing to commit'; exit 0; fi
+          git commit -m 'The page is 2.4.1 and says what changed'
+          git push

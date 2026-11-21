@@ -1,3 +1,22 @@
+## 2.5 - 21 November 2026
+
+No restart under the keyboard, and no notes from a screen the app has left behind.
+
+- **Typing no longer begins the journal again.** Showing the keyboard counted as a configuration
+  change the app had to rebuild itself for: the activity was replaced, the page was loaded from the
+  top underneath the keys, and the day being written went with it. The window now handles the
+  keyboard, a rotation and a split screen itself, and keeps the page it is already drawing - and if
+  the system rebuilds the app anyway, the page comes back as it was instead of starting over.
+- **A screen older than the app is never drawn.** The shell served any over-the-air copy that
+  existed; it now serves one only while it is newer than the page inside the install. A 1.9.6 copy
+  kept on a phone from a stale download is thrown away before the first draw, so the journal cannot
+  open on an old screen and announce that screen's version.
+- **What's New stays off anything being written.** It waits for an open day to close, and a page
+  older than the app around it says nothing at all, so the sheet can never land on the first
+  sentence again.
+- **The 1.9.6 notes are gone.** That version's entry has been removed from the screen, so there is
+  no 1.9.6 sheet left to appear.
+
 ## 2.4 - 13 November 2026
 
 The page ends where the writing does, and the keys stay out of it.

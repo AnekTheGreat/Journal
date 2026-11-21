@@ -198,7 +198,7 @@ body.keys #day-body{padding-bottom:max(72px,16vh)}
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.4.1";
+const JOURNAL_PAGE = "2.5";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -244,10 +244,25 @@ const JOURNAL_PAGE = "2.4.1";
   // 2.3 - NOT OVER SOMETHING BEING WRITTEN. The notes belong to the moment the journal opens. If a day
   // is already open, or a field has the keyboard, they wait for the day to be closed instead of
   // landing on the first sentence.
-  function askWhatsNew() {
+  //
+  // 2.5 - AND NOTHING FROM A SCREEN THE APP HAS LEFT BEHIND. These notes name the version of the page
+  // that is drawing them, so a screen served by an older install announced ITS version - a 1.9.6
+  // sheet on an app that had moved on, every launch, because that page never kept the marker. A page
+  // older than the app around it now says nothing at all: the shell refuses to serve it (see
+  // PageStore.stored) and the copy is thrown away at the next start.
+  function writingNow() {
     var a = document.activeElement;
-    var busy = S.day || (a && /^(INPUT|TEXTAREA)$/.test(a.tagName));
-    if (busy) { S.wnWait = 1; return; }
+    return !!(S.day || S.hello || S.tour >= 0 || (a && /^(INPUT|TEXTAREA)$/.test(a.tagName)));
+  }
+
+  function screenBehindApp() {
+    var app = appVer();
+    return !!app && isNewer(app, JOURNAL_PAGE);
+  }
+
+  function askWhatsNew() {
+    if (screenBehindApp()) return;                               // not this screen's news to tell
+    if (writingNow()) { S.wnWait = 1; return; }                   // it waits for the day to close
     showWhatsNew();
   }
 
@@ -572,6 +587,16 @@ const JOURNAL_PAGE = "2.4.1";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.5": {
+      date: "21 November 2026",
+      title: "Nothing starts over under the keyboard",
+      notes: [
+        "Starting to type no longer begins the journal again. The keyboard appearing counted as a change the app had to rebuild itself for, so the page was loaded from the top underneath the keys and the day being written went with it. The window now handles the keyboard and a rotation itself, and keeps the page it was already drawing.",
+        "A screen older than the app can no longer be drawn. The shell serves a downloaded screen only while it is newer than the one inside the install; anything older, including the 1.9.6 copy a phone could keep from a stale download, is thrown away before the first draw.",
+        "These notes never open over a day being written, and never from a screen the app has left behind. They wait for the day to be closed.",
+        "The 1.9.6 notes are gone from this screen entirely, so there is no 1.9.6 sheet left to come back."
+      ]
+    },
     "2.4.1": {
       date: "14 November 2026",
       title: "The page cannot fall behind the app",
@@ -671,14 +696,6 @@ const JOURNAL_PAGE = "2.4.1";
         "Every one of them is a birthday plan on its month and day in every year, drawn in rose in the calendar beside the tan of a day with an entry, and still shared back to FamTM the same way."
       ]
     },
-    "1.9.6": {
-      date: "6 November 2026",
-      title: "The journal ends with the journal",
-      notes: [
-        "The card offering the other apps is gone from the journal's list. Writing an entry now ends with the entries, not with a shelf of other apps.",
-        "It is still in Plans, under the plans and the birthdays, where someone is looking for what else there is to open."
-      ]
-    },
     "1.9.5": {
       date: "6 November 2026",
       title: "The birthdays card says what FamTM actually holds",
@@ -776,6 +793,8 @@ const JOURNAL_PAGE = "2.4.1";
   function wnMark() { remember("ujournal.wn", JOURNAL_PAGE); }
 
   function showWhatsNew() {
+    // 2.5 - the last word, however the sheet was reached: nothing is drawn over a keyboard.
+    if (writingNow()) { S.wnWait = 1; return; }
     var u = WN[JOURNAL_PAGE];
     if (!u) return;
     // 2.2 - read the moment it is on screen, not when its button is tapped.

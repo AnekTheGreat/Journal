@@ -67,6 +67,12 @@ class MainActivity : Activity() {
 
     /** True once the bundled page has been tried, so a broken build cannot reload for ever. */
     private var fellBack = false
+
+    /**
+     * 2.5 - True when the page on screen came back from the saved state, so it is already drawn and
+     * the watchdog has nothing to wait for. Cleared by every real load.
+     */
+    private var kept = false
     private var watchdog: Runnable? = null
 
     /** When the last check went out, so coming back does not ask again straight away. */
@@ -122,7 +128,16 @@ class MainActivity : Activity() {
         )
         setContentView(frame)
         bars()
-        loadPage()
+        // 2.5 - A PAGE THAT WAS ALREADY THERE IS NOT LOADED AGAIN. When the system does rebuild this
+        // activity - a rotation, a split screen, a phone that took the app back - the WebView hands
+        // back the page it was drawing instead of starting it from the top, so the day being written
+        // is still open and the words are still in it.
+        if (savedInstanceState != null && web.restoreState(savedInstanceState) != null) {
+            kept = true
+            ready = true
+        } else {
+            loadPage()
+        }
         // One quiet check per launch. It only speaks when something newer exists, so a journal that
         // is current - or offline - opens exactly as it did before updates existed.
         checkUpdates(silent = true)
@@ -137,6 +152,16 @@ class MainActivity : Activity() {
         super.onResume()
         eval("window.journalResume&&window.journalResume()")
         if (System.currentTimeMillis() - lastCheck > CHECK_EVERY) checkUpdates(silent = true)
+    }
+
+    /**
+     * 2.5 - the page is kept with the activity, for the case where the system rebuilds it anyway:
+     * a phone short of memory, a split screen, a rotation on a build that still recreates. The
+     * WebView saves its own state, which is the page, its scroll and the day that was open.
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (::web.isInitialized) web.saveState(outState)
     }
 
     /** Whatever was typed belongs on disk even if the page never blurs the field. */
@@ -171,6 +196,9 @@ class MainActivity : Activity() {
     /** Load the stored page when there is one, the bundled page otherwise. */
     fun loadPage() {
         ready = false
+        kept = false
+        // PageStore.stored answers no for a copy older than the page this APK carries, so an old
+        // over-the-air screen is never the one that is drawn.
         val url = if (PageStore.stored(this)) "file://" + PageStore.path(this)
         else "file:///android_asset/index.html"
         web.loadUrl(url)
@@ -178,6 +206,9 @@ class MainActivity : Activity() {
 
     /** Start, or restart, the wait for the page to say it has drawn. */
     private fun watch() {
+        // A page put back from the saved state has already drawn. Waiting for it to say so a second
+        // time is how a restored screen would reload itself, which is the restart this avoids.
+        if (kept) { ready = true; return }
         ready = false
         watchdog?.let { main.removeCallbacks(it) }
         val check = Runnable { if (!ready) fallback() }

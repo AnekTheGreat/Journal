@@ -28,7 +28,14 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/Theme.UJournal">
+        <!-- 2.5 - THE KEYBOARD IS NOT A REASON TO REBUILD THE APP. Without this list, showing the
+             keys counts as a configuration change and Android replaces the activity, which loads
+             the page from the top underneath them: the journal appeared to restart the second
+             someone began to type, and the fresh page then put What's New over the first
+             sentence. Declaring the changes means the window keeps the same page and simply
+             resizes for the keys and for a rotation, with the day being written still in it. -->
         <activity android:name=".MainActivity" android:exported="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

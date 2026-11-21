@@ -50,8 +50,27 @@ object PageStore {
     /** Where the stored page is, for the WebView to load. */
     fun path(ctx: Context): String = file(ctx).absolutePath
 
-    /** Whether an over-the-air copy is being served instead of the bundled one. */
-    fun stored(ctx: Context): Boolean = file(ctx).let { it.isFile && it.length() > 0L }
+    private fun hasFile(ctx: Context): Boolean = file(ctx).let { it.isFile && it.length() > 0L }
+
+    /**
+     * Whether an over-the-air copy is being served instead of the bundled one.
+     *
+     * 2.5 - AND ONLY WHILE IT IS NEWER THAN THE PAGE INSIDE THIS APK. The stored file merely
+     * existing used to be enough, so any copy a phone had once kept stayed the screen until something
+     * deleted it - which is how an app on 2.4 could still open on a 1.9.6 screen and announce 1.9.6's
+     * What's New over the first sentence being typed. The answer is now the same question
+     * [dropStale] asks, so a copy older than the APK cannot be drawn in the gap between a start and
+     * the next cleanup either.
+     */
+    fun stored(ctx: Context): Boolean = hasFile(ctx) && storedNewer(ctx)
+
+    /** Is the copy on disk a later page than the one this APK carries? */
+    private fun storedNewer(ctx: Context): Boolean {
+        val storedVer = try { versionOf(file(ctx).readText()) } catch (e: Exception) { null } ?: return false
+        return newer(storedVer, bundledVersion(ctx))
+    }
+
+    private fun bundledVersion(ctx: Context): String? = versionOf(safeBundled(ctx) ?: "")
 
     /** The version a page names - `JOURNAL_PAGE = "1.3.0"` - or null when it names none. */
     fun versionOf(text: String): String? =
@@ -110,7 +129,7 @@ object PageStore {
         }
         if (!text.contains(MARK)) return false
         if (versionOf(text) != version) return false
-        if (!newer(version, versionOf(safeBundled(ctx) ?: ""))) return false
+        if (!newer(version, bundledVersion(ctx))) return false
         return try {
             val d = dir(ctx).apply { mkdirs() }
             val tmp = File(d, "$NAME.tmp")
@@ -140,18 +159,11 @@ object PageStore {
      * underneath it for the case the versions cannot be read.
      */
     fun dropStale(ctx: Context) {
-        if (!stored(ctx)) return
+        if (!hasFile(ctx)) return
 
-        val storedText = try { file(ctx).readText() } catch (e: Exception) { "" }
-        val shippedText = safeBundled(ctx)
-        val storedVer = versionOf(storedText)
-        val shippedVer = versionOf(shippedText ?: "")
-
-        if (storedVer == null) {
-            clear(ctx)
-            return
-        }
-        if (shippedVer != null && newer(shippedVer, storedVer)) {
+        // The one rule: a copy that is not newer than the APK's own page is not a page this build
+        // serves - including one that names no version at all, which is not a page to trust.
+        if (!storedNewer(ctx)) {
             clear(ctx)
             return
         }

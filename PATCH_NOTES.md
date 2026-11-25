@@ -1,3 +1,20 @@
+## 2.7 - 25 November 2026
+
+The birthdays card says Re-check, so an updated FamTM is read again in one tap.
+
+- **The tap is written on the card.** The card in Plans has always read FamTM's list again when
+  tapped, but nothing on it said so - a count with a cake beside it read like a sentence about
+  FamTM. It now carries a pill on the right that says Re-check, which is the thing to press after
+  someone is added or a day is corrected in FamTM.
+- **Add while something is waiting.** When FamTM holds birthdays this journal has not got, the same
+  pill says Add and the card stays rose, so the tap that brings new people in is named as well. A
+  FamTM this copy cannot read says Try again; a phone without FamTM offers no pill at all.
+- **The settings row says the same.** Under Settings > Journal the birthdays row now reads
+  "Re-check FamTM, and share the ones typed here back".
+- **Nothing about the exchange changed.** A name and a day still come across, a birthday already
+  here is still never added twice, and this journal's birthdays are still published back for
+  FamTM to read.
+
 ## 2.6 - 25 November 2026
 
 A birthday added in FamTM is offered, not hunted for.

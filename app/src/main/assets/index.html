@@ -61,6 +61,12 @@ nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;ma
    rather than looked for. */
 .fambtn.new{border-color:var(--rose)}
 .fambtn.new .fc,.fambtn.new b{color:var(--rose)}
+/* 2.7 - the card says what a tap does. It was only a button in the markup, so a list that had been
+   read once looked like a sentence about itself and an updated FamTM looked like it had not been
+   read at all. The pill on the right is Re-check, and turns into Add while something is waiting. */
+.fambtn .tx{flex:1;min-width:0}
+.fambtn .act{flex:0 0 auto;font-size:11.5px;color:var(--muted);border:1px solid var(--sand);border-radius:999px;padding:5px 10px;white-space:nowrap}
+.fambtn.new .act{background:var(--rose);border-color:var(--rose);color:#fff}
 .plans{margin:2px 0 10px}
 .plan{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;padding:12px 14px;margin-bottom:8px}
 .plan.today{border:1px solid var(--tan)}
@@ -202,7 +208,7 @@ body.keys #day-body{padding-bottom:max(72px,16vh)}
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.6";
+const JOURNAL_PAGE = "2.7";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -531,6 +537,10 @@ const JOURNAL_PAGE = "2.6";
   // waiting, so the only way to find out was to tap and read the toast. When FamTM holds birthdays
   // that are not here, the card says how many and offers them as the thing to tap; the rest of the
   // time it stays the quiet count it was.
+  // 2.7 - AND IT SHOWS THE TAP. The card has always read FamTM again when tapped, but nothing on it
+  // said so: a count with a cake beside it looked like a line of text, so a family updated in FamTM
+  // and a list that had simply not been read again looked the same. The pill on the right is the
+  // tap, in words - Re-check - and it becomes Add while there are new birthdays to bring across.
   function famtmWaiting() {
     var s = famtmState();
     return s.why === "ok" ? (parseInt(s.new, 10) || 0) : 0;
@@ -549,9 +559,15 @@ const JOURNAL_PAGE = "2.6";
       line = app + (fresh === 1 ? " has one you haven't got" : " has " + fresh + " you haven't got") +
         " · " + s.kept + " here";
     } else line = s.offered + " in FamTM · " + s.kept + " here";
+    // What the tap is offering, in two words at most. Re-check asks FamTM for its list again, which
+    // is the one thing to do after someone is added or a day is corrected over there; Add says the
+    // same tap brings the new ones in. Nothing is offered when there is no FamTM on the phone.
+    var act = fresh > 0 ? "Add" : s.why === "no-read" ? "Try again" :
+      (s.why === "no-app" ? "" : "Re-check");
     return '<button class="fambtn' + (fresh > 0 ? " new" : "") + '" data-sync="1">' +
-      '<span class="fc">' + (fresh > 0 ? "＋" : "🎂") + '</span><span>' +
-      '<b>' + title + '</b><i>' + line + '</i></span></button>';
+      '<span class="fc">' + (fresh > 0 ? "＋" : "🎂") + '</span><span class="tx">' +
+      '<b>' + title + '</b><i>' + line + '</i></span>' +
+      (act ? '<span class="act">' + act + '</span>' : '') + '</button>';
   }
 
   function runSync() {
@@ -613,6 +629,15 @@ const JOURNAL_PAGE = "2.6";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.7": {
+      date: "25 November 2026",
+      title: "The birthdays card says Re-check",
+      notes: [
+        "The birthdays card in Plans now has the tap written on it. It has always read FamTM's list again when tapped, but nothing on the card said so: a count with a cake beside it looked like a sentence about FamTM rather than the way to ask it. The pill on the right says Re-check, so a family updated in FamTM can be read again in one tap.",
+        "When FamTM is holding birthdays this journal hasn't got, that same pill says Add instead, and the card is rose as before - so the tap that brings new people in is named too. If FamTM can't be read on this copy, it says Try again.",
+        "The settings row under Journal says the same thing: Re-check FamTM, and share the ones typed here back."
+      ]
+    },
     "2.6": {
       date: "25 November 2026",
       title: "The birthdays FamTM just gained",
@@ -1384,7 +1409,7 @@ const JOURNAL_PAGE = "2.6";
         '<button class="sbtn' + (fresh > 0 ? " go" : "") + '" data-setdo="sync"><b>Birthdays from FamTM</b><i>' +
         (fresh > 0
           ? esc(fresh === 1 ? "One new birthday is waiting in FamTM" : fresh + " new birthdays are waiting in FamTM")
-          : "Bring them in, and share the ones typed here back") +
+          : "Re-check FamTM, and share the ones typed here back") +
         '</i></button>' +
         "<p>Your journals live on this phone. Nothing here needs an account, and nothing is uploaded.</p>";
     } else if (s === "transfer") {

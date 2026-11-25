@@ -37,7 +37,8 @@ android {
         // copy cannot be drawn in the gap before the next cleanup either.
         // 2.6 - the birthdays card is told how many of FamTM's are not here yet, so new ones can be
         // offered by name and number instead of only after a tap.
-        versionName = "2.6"
+        // 2.7 - and the card carries the tap in words: Re-check, or Add while something is waiting.
+        versionName = "2.7"
         // A version here is major.minor, so a part that is not there counts as zero instead of
         // crashing the build. Three digits of room per part: no two versions can share a code, and
         // a code that does not go up is a release Android refuses to install over the one before it.

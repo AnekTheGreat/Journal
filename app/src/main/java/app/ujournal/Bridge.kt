@@ -232,10 +232,15 @@ class Bridge(private val ui: MainActivity) {
     fun famtmState(): String = runCatching {
         val app = FamTm.version(ui)
         val read = FamTm.birthdays(ui)
+        val have = birthdays()
         JSONObject()
             .put("app", app ?: "")
             .put("offered", read?.size ?: -1)
             .put("kept", store.plans().count { it.kind == "birthday" })
+            // 2.6 - how many of FamTM's birthdays are not in the journal yet. The card used to read
+            // the same whether there was nothing to bring across or three people added in FamTM this
+            // week; this is the number that lets it offer to add them.
+            .put("new", read?.count { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have } ?: 0)
             .put("why", when {
                 app == null -> "no-app"
                 read == null -> "no-read"

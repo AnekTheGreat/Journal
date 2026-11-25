@@ -1,3 +1,16 @@
+## 2.6 - 25 November 2026
+
+A birthday added in FamTM is offered, not hunted for.
+
+- **The card says when FamTM has new ones.** The birthdays card in Plans used to read the same
+  whether there was nothing to bring across or three people added this week - a plain "8 in FamTM ·
+  5 here". It now counts the ones this journal does not have yet, turns rose, and offers them: "Add
+  3 new birthdays from FamTM". One tap brings them in, and the same line, with the same count, is
+  in Settings under Journal.
+- **Coming back from FamTM asks straight away.** The read that runs when the journal returns to the
+  screen shared the short limit that keeps tab changes quiet, so a birthday added in FamTM while the
+  journal was open could be missed until the next open. That one ask is never held back now.
+
 ## 2.5 - 21 November 2026
 
 No restart under the keyboard, and no notes from a screen the app has left behind.

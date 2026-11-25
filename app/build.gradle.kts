@@ -35,7 +35,9 @@ android {
         // so a phone that was drawing an older over-the-air screen draws the one in the code again.
         // 2.5 - and the shell only ever SERVES a stored page that is newer than its own, so a 1.9.6
         // copy cannot be drawn in the gap before the next cleanup either.
-        versionName = "2.5"
+        // 2.6 - the birthdays card is told how many of FamTM's are not here yet, so new ones can be
+        // offered by name and number instead of only after a tap.
+        versionName = "2.6"
         // A version here is major.minor, so a part that is not there counts as zero instead of
         // crashing the build. Three digits of room per part: no two versions can share a code, and
         // a code that does not go up is a release Android refuses to install over the one before it.

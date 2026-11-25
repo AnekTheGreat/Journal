@@ -57,6 +57,10 @@ nav#tabs button.on{color:var(--ink);background:var(--sand);border-radius:14px;ma
 .fambtn .fc{font-size:22px;line-height:1}
 .fambtn b{display:block;font-family:Georgia,serif;font-size:16px;font-weight:400}
 .fambtn i{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:3px}
+/* 2.6 - the card is rose while it is holding something new, so a birthday added in FamTM is seen
+   rather than looked for. */
+.fambtn.new{border-color:var(--rose)}
+.fambtn.new .fc,.fambtn.new b{color:var(--rose)}
 .plans{margin:2px 0 10px}
 .plan{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;padding:12px 14px;margin-bottom:8px}
 .plan.today{border:1px solid var(--tan)}
@@ -198,7 +202,7 @@ body.keys #day-body{padding-bottom:max(72px,16vh)}
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.5";
+const JOURNAL_PAGE = "2.6";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -506,7 +510,10 @@ const JOURNAL_PAGE = "2.5";
     var n = parseInt(call("famtmBirthdays"), 10);
     return {
       why: n === -1 ? "no-app" : n === -2 ? "no-read" : "ok",
-      app: "", offered: n > 0 ? n : 0, kept: 0
+      app: "", offered: n > 0 ? n : 0, kept: 0,
+      // An app older than 2.6 counts the new ones but does not name them: what it answers with is
+      // itself the number waiting, which is all the card needs.
+      new: n > 0 ? n : 0
     };
   }
 
@@ -519,16 +526,32 @@ const JOURNAL_PAGE = "2.5";
   // 1.9.1 - BOTH WAYS. The bare import left the exchange one-sided: FamTM's birthdays arrived and
   // the ones typed here could never go back, because only FamTM published a list. The app now
   // publishes one too (see Birthdays.kt), so one tap does both halves and the card says so.
+  // 2.6 - AND IT ASKS FOR THE NEW ONES. FamTM's list grows - a baby, a partner, someone added this
+  // week - and the card read the same whether there was nothing to bring across or three people
+  // waiting, so the only way to find out was to tap and read the toast. When FamTM holds birthdays
+  // that are not here, the card says how many and offers them as the thing to tap; the rest of the
+  // time it stays the quiet count it was.
+  function famtmWaiting() {
+    var s = famtmState();
+    return s.why === "ok" ? (parseInt(s.new, 10) || 0) : 0;
+  }
+
   function famtmButton() {
     var s = famtmState();
     var app = s.app ? "FamTM " + s.app : "FamTM";
-    var line;
+    var fresh = s.why === "ok" ? (parseInt(s.new, 10) || 0) : 0;
+    var title = "Birthdays from FamTM", line;
     if (s.why === "no-app") line = "FamTM isn't installed on this phone";
     else if (s.why === "no-read") line = app + " is here, but this copy can't read it";
     else if (s.why === "empty") line = app + " has nobody with a birthday in it";
-    else line = s.offered + " in FamTM · " + s.kept + " here";
-    return '<button class="fambtn" data-sync="1"><span class="fc">🎂</span><span>' +
-      '<b>Birthdays from FamTM</b><i>' + line + '</i></span></button>';
+    else if (fresh > 0) {
+      title = fresh === 1 ? "Add the new birthday from FamTM" : "Add " + fresh + " new birthdays from FamTM";
+      line = app + (fresh === 1 ? " has one you haven't got" : " has " + fresh + " you haven't got") +
+        " · " + s.kept + " here";
+    } else line = s.offered + " in FamTM · " + s.kept + " here";
+    return '<button class="fambtn' + (fresh > 0 ? " new" : "") + '" data-sync="1">' +
+      '<span class="fc">' + (fresh > 0 ? "＋" : "🎂") + '</span><span>' +
+      '<b>' + title + '</b><i>' + line + '</i></span></button>';
   }
 
   function runSync() {
@@ -542,7 +565,7 @@ const JOURNAL_PAGE = "2.5";
     var mine = appVer() || JOURNAL_PAGE;
     var msg;
     if (added > 0) {
-      msg = added === 1 ? "One birthday added from FamTM" : added + " birthdays added from FamTM";
+      msg = added === 1 ? "One new birthday added from FamTM" : added + " new birthdays added from FamTM";
     } else if (why === "no-app") {
       msg = "FamTM isn't installed on this phone";
     } else if (why === "no-read") {
@@ -564,17 +587,20 @@ const JOURNAL_PAGE = "2.5";
   // that a birthday is never added twice still holds - the phone does the deduplicating, this only
   // asks. Throttled, because every tab change would otherwise ask again for a list that cannot have
   // changed in the last few seconds.
+  // 2.6 - coming back to the journal asks straight away. The throttle is for moving between tabs
+  // inside the journal, where FamTM's list cannot have changed; returning from another app is
+  // exactly the moment a birthday was added over there, so that ask is never the one held back.
   var lastSync = 0;
-  function autoSync() {
+  function autoSync(force) {
     if (!G || !G.syncBirthdays) return;                 // a browser, or an app older than 1.9.1
     var now = Date.now();
-    if (now - lastSync < 30000) return;
+    if (!force && now - lastSync < 30000) return;
     lastSync = now;
     var r = parse(call("syncBirthdays"), null) || {};
     var added = parseInt(r.added, 10) || 0;
     if (added > 0) {
       refresh();
-      say(added === 1 ? "One birthday added from FamTM" : added + " birthdays added from FamTM");
+      say(added === 1 ? "One new birthday added from FamTM" : added + " new birthdays added from FamTM");
     }
   }
 
@@ -587,6 +613,14 @@ const JOURNAL_PAGE = "2.5";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.6": {
+      date: "25 November 2026",
+      title: "The birthdays FamTM just gained",
+      notes: [
+        "When someone new is added in FamTM, the birthdays card in Plans now says so instead of reading like a plain count: it turns rose, says how many FamTM has that this journal hasn't got, and adds them in one tap. The same line is in Settings, under Journal.",
+        "And the journal asks as soon as you come back to it. The read that runs on returning used to be held back by the same few-second limit that keeps tab changes quiet, so a birthday added in FamTM while the journal was open could go unnoticed until the next open."
+      ]
+    },
     "2.5": {
       date: "21 November 2026",
       title: "Nothing starts over under the keyboard",
@@ -1343,8 +1377,15 @@ const JOURNAL_PAGE = "2.5";
     }).join("");
     var pane;
     if (s === "journal") {
+      // 2.6 - the same count the Plans card reads, so the one setting that brings birthdays across
+      // also says when there is something to bring.
+      var fresh = famtmWaiting();
       pane = '<button class="sbtn go" data-setdo="today"><b>Open today&rsquo;s page</b><i>The entry you are about to write</i></button>' +
-        '<button class="sbtn" data-setdo="sync"><b>Birthdays from FamTM</b><i>Bring them in, and share the ones typed here back</i></button>' +
+        '<button class="sbtn' + (fresh > 0 ? " go" : "") + '" data-setdo="sync"><b>Birthdays from FamTM</b><i>' +
+        (fresh > 0
+          ? esc(fresh === 1 ? "One new birthday is waiting in FamTM" : fresh + " new birthdays are waiting in FamTM")
+          : "Bring them in, and share the ones typed here back") +
+        '</i></button>' +
         "<p>Your journals live on this phone. Nothing here needs an account, and nothing is uploaded.</p>";
     } else if (s === "transfer") {
       pane = '<button class="sbtn go" data-setdo="backup"><b>Save a backup</b><i>One file: every journal and everything attached to it</i></button>' +
@@ -1480,7 +1521,7 @@ const JOURNAL_PAGE = "2.5";
     toast: say
   };
 
-  window.journalResume = function () { refresh(); autoSync(); };
+  window.journalResume = function () { refresh(); autoSync(true); };
   // onPause asks for whatever was typed to be on disk before the phone takes the screen away.
   window.journalFlush = saveNow;
   // The shell asks this before it swaps in a new screen: a day open means a draft being written, and

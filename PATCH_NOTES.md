@@ -21,14 +21,14 @@ No restart under the keyboard, and no notes from a screen the app has left behin
   keyboard, a rotation and a split screen itself, and keeps the page it is already drawing - and if
   the system rebuilds the app anyway, the page comes back as it was instead of starting over.
 - **A screen older than the app is never drawn.** The shell served any over-the-air copy that
-  existed; it now serves one only while it is newer than the page inside the install. A 1.9.6 copy
+  existed; it now serves one only while it is newer than the page inside the install. An old copy
   kept on a phone from a stale download is thrown away before the first draw, so the journal cannot
   open on an old screen and announce that screen's version.
 - **What's New stays off anything being written.** It waits for an open day to close, and a page
   older than the app around it says nothing at all, so the sheet can never land on the first
   sentence again.
-- **The 1.9.6 notes are gone.** That version's entry has been removed from the screen, so there is
-  no 1.9.6 sheet left to appear.
+- **The old notes are gone.** That version's entry has been removed from the screen entirely, so
+  there is no leftover sheet left to appear.
 
 ## 2.4 - 13 November 2026
 
@@ -173,22 +173,6 @@ Page only, so it arrives over the air.
 ### Unchanged
 - Still on the phone only: FamTM's living family, a name and a day each, read through its read-only
   provider, with this journal's own birthdays published back the same way.
-
-
-## 1.9.6 — November 6, 2026
-
-**The other-apps card leaves the journal list and stays in Plans**
-
-### Changed
-- **No other-apps card under the entries.** The journal's own list drew the card for SideCut, FamTM
-  and the rest after the last entry, so every list ended with a shelf of other apps. The list now
-  ends with the journal itself.
-- **Plans keeps it.** The same card is still at the bottom of Plans, where the plans and the
-  birthdays are, so nothing became unreachable.
-
-### Unchanged
-- The birthdays still add themselves, the rose colour in the calendar and the provider back to FamTM
-  are as they were in 1.9.5.
 
 
 ## 1.9.5 — November 6, 2026

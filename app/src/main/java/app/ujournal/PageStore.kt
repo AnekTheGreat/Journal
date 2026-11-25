@@ -23,7 +23,7 @@ import java.io.File
  * 2.4.1 - THE APK WINS BY VERSION, NOT BY CLOCK. "A new APK always wins" was decided by comparing
  * the stored file's timestamp with the install time. That is a race the page can lose: a copy
  * fetched from a stale URL *after* the install has a newer timestamp than the install, so it
- * survived, and a phone running 2.4 could still draw a 1.9.6 screen - which is how a 1.9.6 "What's
+ * survived, and a phone running 2.4 could still draw an old screen - which is how an old "What's
  * New" kept appearing on an app that was on 2.4. The comparison is now the version both pages name:
  * the bundled page beats any stored copy that is older than it, and [save] refuses a download that
  * is not newer than the page in the APK, so an out-of-date mirror can never pull a phone backwards.
@@ -57,8 +57,8 @@ object PageStore {
      *
      * 2.5 - AND ONLY WHILE IT IS NEWER THAN THE PAGE INSIDE THIS APK. The stored file merely
      * existing used to be enough, so any copy a phone had once kept stayed the screen until something
-     * deleted it - which is how an app on 2.4 could still open on a 1.9.6 screen and announce 1.9.6's
-     * What's New over the first sentence being typed. The answer is now the same question
+     * deleted it - which is how an app on 2.4 could still open on an old screen and announce that
+     * screen's What's New over the first sentence being typed. The answer is now the same question
      * [dropStale] asks, so a copy older than the APK cannot be drawn in the gap between a start and
      * the next cleanup either.
      */

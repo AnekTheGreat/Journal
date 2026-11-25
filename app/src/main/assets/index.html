@@ -250,7 +250,7 @@ const JOURNAL_PAGE = "2.6";
   // landing on the first sentence.
   //
   // 2.5 - AND NOTHING FROM A SCREEN THE APP HAS LEFT BEHIND. These notes name the version of the page
-  // that is drawing them, so a screen served by an older install announced ITS version - a 1.9.6
+  // that is drawing them, so a screen served by an older install announced ITS version - an old
   // sheet on an app that had moved on, every launch, because that page never kept the marker. A page
   // older than the app around it now says nothing at all: the shell refuses to serve it (see
   // PageStore.stored) and the copy is thrown away at the next start.
@@ -626,16 +626,16 @@ const JOURNAL_PAGE = "2.6";
       title: "Nothing starts over under the keyboard",
       notes: [
         "Starting to type no longer begins the journal again. The keyboard appearing counted as a change the app had to rebuild itself for, so the page was loaded from the top underneath the keys and the day being written went with it. The window now handles the keyboard and a rotation itself, and keeps the page it was already drawing.",
-        "A screen older than the app can no longer be drawn. The shell serves a downloaded screen only while it is newer than the one inside the install; anything older, including the 1.9.6 copy a phone could keep from a stale download, is thrown away before the first draw.",
+        "A screen older than the app can no longer be drawn. The shell serves a downloaded screen only while it is newer than the one inside the install; anything older, including an old copy a phone could keep from a stale download, is thrown away before the first draw.",
         "These notes never open over a day being written, and never from a screen the app has left behind. They wait for the day to be closed.",
-        "The 1.9.6 notes are gone from this screen entirely, so there is no 1.9.6 sheet left to come back."
+        "An old version's notes are gone from this screen entirely, so there is no leftover sheet left to come back."
       ]
     },
     "2.4.1": {
       date: "14 November 2026",
       title: "The page cannot fall behind the app",
       notes: [
-        "A phone on 2.4 could still be drawing a 1.9.6 screen. The app keeps a copy of the page it downloaded and only checked the clock on that copy against the install, so a page fetched from an old address after the install looked newer and stayed. The copy is now checked by version, and one older than the page inside this build is thrown away on the next open. A download that is not newer is refused as well, so the screen can only move forward."
+        "A phone on 2.4 could still be drawing an old screen. The app keeps a copy of the page it downloaded and only checked the clock on that copy against the install, so a page fetched from an old address after the install looked newer and stayed. The copy is now checked by version, and one older than the page inside this build is thrown away on the next open. A download that is not newer is refused as well, so the screen can only move forward."
       ]
     },
     "2.4": {

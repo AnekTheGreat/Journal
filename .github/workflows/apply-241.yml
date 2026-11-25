@@ -32,7 +32,7 @@ jobs:
               anchor = '    "2.4": {'
               if s.count(anchor) != 1:
                   sys.exit('FATAL: no 2.4 note to put this release above')
-              note = ('A phone on 2.4 could still be drawing a 1.9.6 screen. The app keeps a copy of '
+              note = ('A phone on 2.4 could still be drawing an old screen. The app keeps a copy of '
                       'the page it downloaded and only checked the clock on that copy against the '
                       'install, so a page fetched from an old address after the install looked newer '
                       'and stayed. The copy is now checked by version, and one older than the page '

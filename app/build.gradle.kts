@@ -33,7 +33,7 @@ android {
         // computed from the name and only ever goes up: 1.6.3 -> 10603.
         // 2.4.1 - the page the APK carries now beats a stored copy by version (PageStore.dropStale),
         // so a phone that was drawing an older over-the-air screen draws the one in the code again.
-        // 2.5 - and the shell only ever SERVES a stored page that is newer than its own, so a 1.9.6
+        // 2.5 - and the shell only ever SERVES a stored page that is newer than its own, so an old
         // copy cannot be drawn in the gap before the next cleanup either.
         // 2.6 - the birthdays card is told how many of FamTM's are not here yet, so new ones can be
         // offered by name and number instead of only after a tap.

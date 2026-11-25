@@ -187,6 +187,98 @@ class Bridge(private val ui: MainActivity) {
     }.getOrDefault(0)
 
     /**
+     * 2.9 - THE SAME LIST, CARRIED BY HAND. The exchange with FamTM is a provider read, and on a
+     * phone where that read is the thing that does not work there was no way to bring a birthday
+     * across at all. This saves the whole card - FamTM's list as it is today, plus the ones typed
+     * here - as one file wherever the phone's Save dialog points, to be kept or taken to another
+     * phone.
+     */
+    @JavascriptInterface
+    fun saveBirthdays() = main { ui.exportBirthdays() }
+
+    /** And the other half: a birthdays file, or a FamTM backup, read back into the plans. */
+    @JavascriptInterface
+    fun loadBirthdays() = main { ui.importBirthdays() }
+
+    /** What [saveBirthdays] writes: every birthday this app knows, and where each one came from. */
+    internal fun birthdaysFile(): String {
+        val app = FamTm.version(ui)
+        val read = FamTm.birthdays(ui) ?: emptyList()
+        val out = ArrayList<BirthdayFile.Birthday>()
+        val seen = HashSet<String>()
+        read.filter { it.name.isNotBlank() }.forEach { b ->
+            out.add(BirthdayFile.Birthday(b.name, b.month, b.day, b.year, true))
+            seen.add(b.name.lowercase() + "|" + b.md)
+        }
+        store.plans().filter { it.kind == "birthday" && it.title.isNotBlank() }.forEach { p ->
+            val md = p.start.takeLast(5)
+            if ((p.title.lowercase() + "|" + md) in seen) return@forEach
+            val m = md.take(2).toIntOrNull() ?: return@forEach
+            val d = md.takeLast(2).toIntOrNull() ?: return@forEach
+            out.add(BirthdayFile.Birthday(p.title, m, d, p.start.take(4).toIntOrNull() ?: 0, p.note == FROM_FAMTM))
+            seen.add(p.title.lowercase() + "|" + md)
+        }
+        return BirthdayFile.write(out, PageStore.running(ui), app ?: "", LocalDate.now().toString())
+    }
+
+    /**
+     * 2.9 - A FILE IS NOT A FAMILY THAT LOST SOMEBODY. Reading a birthdays file adds what is missing
+     * and corrects a birthday from FamTM where it already is, on the same name and day rules the
+     * Re-check uses - but it never takes one out. A file is a snapshot somebody carried, and a short
+     * one is far more likely than a family that shrank; only a live read of FamTM's own list is
+     * trusted with a removal.
+     */
+    internal fun birthdaysFromFile(text: String): String {
+        val read = BirthdayFile.read(text)
+            ?: return JSONObject().put("why", "not-birthdays").toString()
+        if (read.list.isEmpty()) {
+            return JSONObject().put("why", "none").put("from", read.from).toString()
+        }
+        // What is already here, whoever typed it: a birthday is never added twice.
+        val have = birthdays().toMutableSet()
+        // Only the ones that came from FamTM are corrected in place, exactly as a Re-check does.
+        val mine = store.plans()
+            .filter { it.kind == "birthday" && it.note == FROM_FAMTM }
+            .toMutableList()
+        var added = 0
+        var updated = 0
+        var same = 0
+        for (b in read.list) {
+            val key = b.name.lowercase() + "|" + b.md
+            if (key in have) {
+                same++
+                continue
+            }
+            val note = if (b.fromFamTm) FROM_FAMTM else ""
+            val old = mine.firstOrNull { it.title.equals(b.name, true) }
+                ?: mine.firstOrNull { it.start.takeLast(5) == b.md }
+            // A birthday this file did not come from FamTM must not be labelled as one: only then can
+            // Re-check keep it in line, and only then is it ever taken out.
+            if (old != null) {
+                if (old.title == b.name && old.start == b.date && old.note == note) {
+                    same++
+                } else {
+                    store.savePlan(old.copy(title = b.name, start = b.date, end = b.date, note = note))
+                    updated++
+                }
+                mine.remove(old)
+            } else {
+                store.savePlan(Plan("", b.name, b.date, "", b.date, "", "birthday", note))
+                added++
+            }
+            have.add(key)
+        }
+        return JSONObject()
+            .put("why", "ok")
+            .put("from", read.from)
+            .put("added", added)
+            .put("updated", updated)
+            .put("same", same)
+            .put("shared", store.plans().count { it.kind == "birthday" })
+            .toString()
+    }
+
+    /**
      * Both directions at once, which is what the one button in Plans runs: FamTM's birthdays come in,
      * and this journal's go out through [Birthdays] at `content://app.ujournal.birthdays/list`, where
      * FamTM reads them the same way this app reads its list. Returns what actually changed.

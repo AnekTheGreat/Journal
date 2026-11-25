@@ -289,6 +289,14 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        // A birthdays file is the same two dialogs, one list instead of a whole shelf.
+        if (requestCode == REQ_SAVE_BDAYS || requestCode == REQ_OPEN_BDAYS) {
+            val uri = data?.data
+            if (resultCode == RESULT_OK && uri != null) {
+                if (requestCode == REQ_SAVE_BDAYS) writeBirthdays(uri) else readBirthdays(uri)
+            }
+            return
+        }
         // Save and Open are the two halves of moving the journals to another phone.
         if (requestCode == REQ_SAVE || requestCode == REQ_OPEN) {
             val uri = data?.data
@@ -388,6 +396,96 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             eval("JR&&JR.toast('No app can open this file')")
         }
+    }
+
+    // ---- birthdays in a file ----
+
+    /**
+     * 2.9 - THE MANUAL HALF OF THE EXCHANGE. FamTM's birthdays are normally read straight out of the
+     * provider it publishes, and that read is the one thing that does not work on every phone: an
+     * older FamTM that publishes nothing yet, or an Android build that hides one app from another.
+     * Every birthday this app knows is written into one file instead, wherever the phone's own Save
+     * dialog points, so the list can be kept or carried to another phone by hand.
+     */
+    fun exportBirthdays() {
+        val i = Intent(Intent.ACTION_CREATE_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("application/json")
+            .putExtra(Intent.EXTRA_TITLE, "UJournal-birthdays-" + LocalDate.now() + ".json")
+        try {
+            startActivityForResult(i, REQ_SAVE_BDAYS)
+        } catch (e: Exception) {
+            eval("JR&&JR.toast('No app on this phone can save a file')")
+        }
+    }
+
+    /**
+     * And the other half: the same file read back. A FamTM backup is offered in the same picker,
+     * because that is the file someone has when the journal cannot read FamTM itself.
+     */
+    fun importBirthdays() {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*")
+            .putExtra(
+                Intent.EXTRA_MIME_TYPES,
+                arrayOf("application/json", "text/plain", "application/octet-stream")
+            )
+        try {
+            startActivityForResult(i, REQ_OPEN_BDAYS)
+        } catch (e: Exception) {
+            eval("JR&&JR.toast('Nothing on this phone can open that file')")
+        }
+    }
+
+    /** The list is a few kilobytes; a FamTM backup carries photos, so the read is bounded anyway. */
+    private fun writeBirthdays(uri: Uri) {
+        Thread {
+            val json = runCatching { bridge.birthdaysFile() }.getOrNull()
+            val count = runCatching {
+                JSONObject(json ?: "").optJSONArray("birthdays")?.length() ?: 0
+            }.getOrDefault(0)
+            val ok = json != null && runCatching {
+                contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } != null
+            }.getOrDefault(false)
+            val shown = if (ok) {
+                "Saved " + count + (if (count == 1) " birthday" else " birthdays") + " to a file"
+            } else "That birthdays file did not finish"
+            runOnUiThread { eval("JR&&JR.toast(" + JSONObject.quote(shown) + ")") }
+        }.start()
+    }
+
+    private fun readBirthdays(uri: Uri) {
+        Thread {
+            var problem: String? = null
+            var text: String? = null
+            runCatching {
+                contentResolver.openInputStream(uri)?.use { input ->
+                    val out = ByteArrayOutputStream()
+                    val buf = ByteArray(16 * 1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        if (out.size() > MAX_BDAYS) {
+                            problem = "That file is too large for a list of birthdays"
+                            break
+                        }
+                    }
+                    if (problem == null) text = out.toString("UTF-8")
+                }
+            }.onFailure { problem = "That file could not be read" }
+            val answer = problem?.let {
+                JSONObject().put("why", "failed").put("message", it).toString()
+            } ?: text?.let { t ->
+                runCatching { bridge.birthdaysFromFile(t) }.getOrElse {
+                    JSONObject().put("why", "failed")
+                        .put("message", "That file is not a list of birthdays").toString()
+                }
+            } ?: JSONObject().put("why", "failed")
+                .put("message", "Nothing came back from that file").toString()
+            runOnUiThread { eval("window.JR&&JR.birthdays(" + JSONObject.quote(answer) + ")") }
+        }.start()
     }
 
     // ---- carrying the shelf to a new phone ----
@@ -784,6 +882,11 @@ class MainActivity : Activity() {
         /** Save a backup, read one back. */
         const val REQ_SAVE = 43
         const val REQ_OPEN = 44
+        /** Save a file of birthdays, read one back. */
+        const val REQ_SAVE_BDAYS = 45
+        const val REQ_OPEN_BDAYS = 46
+        /** A list of birthdays is tiny; the same file from FamTM carries photos, so this is a ceiling. */
+        const val MAX_BDAYS = 16L * 1024 * 1024
         /** The marker a backup carries at its root. */
         const val MANIFEST = "ujournal-backup.json"
         /** A shelf large enough to need more than this is not one this app wrote. */

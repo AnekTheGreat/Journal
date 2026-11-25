@@ -40,7 +40,9 @@ android {
         // 2.7 - and the card carries the tap in words: Re-check, or Add while something is waiting.
         // 2.8 - and that Re-check corrects and removes as well as adds, so a change made in FamTM
         // lands here instead of beside an older copy of itself.
-        versionName = "2.8"
+        // 2.9 - and the same list can be carried by hand: a birthdays file is saved here and read
+        // back, including the backup FamTM writes, for a phone whose copy cannot read FamTM at all.
+        versionName = "2.9"
         // A version here is major.minor, so a part that is not there counts as zero instead of
         // crashing the build. Three digits of room per part: no two versions can share a code, and
         // a code that does not go up is a release Android refuses to install over the one before it.

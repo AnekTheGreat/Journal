@@ -1,3 +1,21 @@
+## 2.9 - 25 November 2026
+
+The birthdays can be carried across by hand, in a file, when the two apps cannot read each other.
+
+- **A birthdays file.** Transfer has two new rows. Save a birthdays file writes everyone's name and
+  day into one JSON file, wherever the phone's own Save dialog points. Load a birthdays file reads
+  one back and adds what is missing - the manual half of the exchange, for a phone where this copy of
+  the journal cannot read FamTM at all.
+- **A FamTM backup is that file too.** FamTM's Transfer > Export everything writes
+  `family-tree-backup.json`, and loading it here brings across everyone alive whose born date has a
+  day and a month: missing ones are added, and one that came from FamTM and has changed since is
+  corrected where it already is. A year on its own, or a month with no day, has no birthday to keep.
+- **Only birthdays move.** Entries, photos and voice notes are not in that file and are not touched
+  by it. A birthday already here is never added twice, and nothing is ever taken out: a file that is
+  short is not a family that lost somebody.
+- **The tap says what it did.** The line names the birthdays added and corrected, and where the file
+  came from - FamTM's backup, or one saved here.
+
 ## 2.8 - 25 November 2026
 
 Re-check brings a change made in FamTM across, instead of only ever adding.

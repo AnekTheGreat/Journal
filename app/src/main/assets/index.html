@@ -208,7 +208,7 @@ body.keys #day-body{padding-bottom:max(72px,16vh)}
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.8";
+const JOURNAL_PAGE = "2.9";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -652,6 +652,15 @@ const JOURNAL_PAGE = "2.8";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.9": {
+      date: "25 November 2026",
+      title: "The birthdays can travel in a file",
+      notes: [
+        "The birthdays no longer depend on the two apps being able to read each other. Transfer now has a file for them: Save a birthdays file writes everyone's name and day into one JSON file, and Load a birthdays file reads one back. It is the manual half of the same exchange, for a phone where this copy cannot read FamTM at all.",
+        "In FamTM, Transfer > Export everything writes family-tree-backup.json. Load a birthdays file reads that file too: everyone alive whose born date has a day and a month whose birthday is not here yet is added, and one that came from FamTM and has since changed is corrected where it already is. A year on its own, or a month with no day, has no birthday to keep and is left out.",
+        "Only birthdays move. The entries, photos and voice notes are not in that file and are not touched by it, a birthday already here is never added twice, and nothing is ever taken out - a file that is short is not a family that lost somebody."
+      ]
+    },
     "2.8": {
       date: "25 November 2026",
       title: "Re-check brings FamTM's changes across",
@@ -1342,7 +1351,7 @@ const JOURNAL_PAGE = "2.8";
     ["Journal tab", "Every entry, newest first, one tap from the day it was written."],
     ["Calendar tab", "The same entries on a month, with the days you wrote marked on it."],
     ["Plans tab", "Dates ahead, birthdays, and FamTM's birthdays brought across in one button."],
-    ["Transfer", "One file holds every journal. Restoring asks first, because it replaces them."],
+    ["Transfer", "One file holds every journal, and one holds the birthdays on their own. Restoring asks first, because it replaces them."],
     ["Updates", "New screens arrive on open. Check for updates asks now, and What's New says what changed."],
     ["Support", "The tip, and the release notes in a browser. Nothing is locked behind it."],
     ["Other apps", "My Hub, FamTM, SideCut, MeasureT and UNote - the apps beside this one."]
@@ -1422,6 +1431,20 @@ const JOURNAL_PAGE = "2.8";
     ["unote", "UNote", "Notes that link themselves, behind a PIN"]
   ];
 
+  // 2.9 - A BIRTHDAYS FILE, BY HAND. The exchange with FamTM is a read of the list it publishes, and
+  // on a phone where that read is the thing that fails there was no way across at all. These two
+  // rows are the same list as a file: saving writes every birthday this app knows - FamTM's, and the
+  // ones typed here - and loading reads one back, including the family-tree-backup.json FamTM's own
+  // Transfer menu writes. The reading and the writing live in the app, not in this screen, so an old
+  // app says so instead of a tap that does nothing.
+  function birthdaysFile(what) {
+    if (!G || !G.saveBirthdays) {
+      say("Update the journal app first – moving birthdays in a file is in the app, not the screen");
+      return;
+    }
+    call(what === "save" ? "saveBirthdays" : "loadBirthdays");
+  }
+
   function showSettings(sec) {
     var s = "journal";
     SETTABS.forEach(function (t) { if (t[0] === sec) s = sec; });
@@ -1447,7 +1470,9 @@ const JOURNAL_PAGE = "2.8";
     } else if (s === "transfer") {
       pane = '<button class="sbtn go" data-setdo="backup"><b>Save a backup</b><i>One file: every journal and everything attached to it</i></button>' +
         '<button class="sbtn" data-setdo="restore"><b>Restore a backup</b><i>Replaces every journal on this phone, and asks first</i></button>' +
-        "<p>A backup goes wherever the phone&rsquo;s own Save dialog points &mdash; Downloads, a card, a cloud folder.</p>";
+        '<button class="sbtn" data-setdo="bdayssave"><b>Save a birthdays file</b><i>Everyone&rsquo;s name and day, on their own</i></button>' +
+        '<button class="sbtn" data-setdo="bdaysload"><b>Load a birthdays file</b><i>One saved here, or a FamTM backup &mdash; what is missing is added</i></button>' +
+        "<p>A backup goes wherever the phone&rsquo;s own Save dialog points &mdash; Downloads, a card, a cloud folder. A birthdays file is the same, and holds only names and days.</p>";
     } else if (s === "updates") {
       pane = '<button class="sbtn go" data-setdo="check"><b>Check for updates</b><i>Ask now instead of waiting for the next open</i></button>' +
         '<button class="sbtn" data-setdo="news"><b>What&rsquo;s New</b><i>The notes for this version</i></button>' +
@@ -1508,6 +1533,8 @@ const JOURNAL_PAGE = "2.8";
         else if (what === "sync") runSync();
         else if (what === "backup") call("backup");
         else if (what === "restore") call("restore");
+        else if (what === "bdayssave") birthdaysFile("save");
+        else if (what === "bdaysload") birthdaysFile("load");
         else if (what === "check") { say("Checking for updates…"); call("checkUpdates"); }
         else if (what === "news") showWhatsNew();
         else if (what === "release") call("openRelease", appVer() || JOURNAL_PAGE);
@@ -1575,6 +1602,32 @@ const JOURNAL_PAGE = "2.8";
   window.JR = {
     attach: function (date) { reloadDay(date); refresh(); },
     update: function (json) { var u = parse(json, null); if (u) showUpdate(u); },
+    // 2.9 - a birthdays file came back, and the app has already written what it held. The page only
+    // draws it again and says what changed, in the same words the Re-check uses - added, corrected -
+    // so the two ways of bringing a birthday across read alike.
+    birthdays: function (json) {
+      var r = parse(json, null) || {};
+      if (r.why === "not-birthdays") {
+        say("That file is not a list of birthdays – save one here, or export everything from FamTM");
+        return;
+      }
+      if (r.why === "none") {
+        say("That file has nobody with a birthday in it – a born date with a day and a month is what counts");
+        return;
+      }
+      if (r.why !== "ok") { say(String(r.message || "Nothing came back from that file")); return; }
+      refresh();
+      var added = parseInt(r.added, 10) || 0;
+      var fixed = parseInt(r.updated, 10) || 0;
+      var same = parseInt(r.same, 10) || 0;
+      var bits = [];
+      if (added > 0) bits.push(added === 1 ? "1 birthday added" : added + " birthdays added");
+      if (fixed > 0) bits.push(fixed === 1 ? "1 corrected" : fixed + " corrected");
+      if (bits.length) {
+        say((r.from === "FamTM" ? "From FamTM's backup" : "From a birthdays file") + " · " + bits.join(" · "));
+      } else if (same === 1) say("That birthday is already here");
+      else say(same ? "Those " + same + " birthdays are already here" : "That file had nothing new in it");
+    },
     toast: say
   };
 

@@ -190,21 +190,75 @@ class Bridge(private val ui: MainActivity) {
      * Both directions at once, which is what the one button in Plans runs: FamTM's birthdays come in,
      * and this journal's go out through [Birthdays] at `content://app.ujournal.birthdays/list`, where
      * FamTM reads them the same way this app reads its list. Returns what actually changed.
+     *
+     * 2.8 - AND IT IS A RE-CHECK, NOT AN APPEND. Up to 2.7 this only ever added: a day corrected in
+     * FamTM arrived a second time beside the old one, a renamed person came in as a stranger, and
+     * someone taken out of FamTM stayed on the calendar for good. A tapped Re-check that changes
+     * nothing the family just changed reads as a button that does nothing, which is exactly how it
+     * was reported. So the ones that came from FamTM - the plans carrying [FROM_FAMTM], never a
+     * birthday typed here - are brought back in line with the list FamTM publishes now: the same
+     * name and day is left alone, a day or a name that changed over there is corrected in place,
+     * and one FamTM no longer lists is taken out.
      */
     @JavascriptInterface
     fun syncBirthdays(): String = runCatching {
         val app = FamTm.version(ui)
         val read = FamTm.birthdays(ui)
-        val offered = read ?: emptyList()
+        val offered = (read ?: emptyList()).filter { it.name.isNotBlank() }
+        // Every birthday already here, whoever typed it: the rule that one is never added twice is
+        // older than this reconcile and still holds for a birthday entered by hand.
         val have = birthdays()
+
+        // What came from FamTM, and what is still waiting to be matched against it.
+        val mine = store.plans()
+            .filter { it.kind == "birthday" && it.note == FROM_FAMTM }
+            .toMutableList()
+        val left = offered.toMutableList()
         var added = 0
-        offered.filter { it.name.isNotBlank() && (it.name.lowercase() + "|" + it.md) !in have }
-            .forEach { b ->
-                store.savePlan(Plan("", b.name, b.date, "", b.date, "", "birthday", FROM_FAMTM))
-                added++
+        var updated = 0
+        var removed = 0
+
+        // 1. name and day both still match: the birthday here is the one FamTM has.
+        val same = left.filter { b -> mine.any { it.title.equals(b.name, true) && it.start.takeLast(5) == b.md } }
+        left.removeAll(same)
+        mine.removeAll { p -> same.any { b -> p.title.equals(b.name, true) && p.start.takeLast(5) == b.md } }
+
+        // 2. FamTM still has the person, under the same name with another day or the same day under
+        //    another name - a correction, so the row is changed rather than a second one added.
+        for (b in left.toList()) {
+            val old = mine.firstOrNull { it.title.equals(b.name, true) }
+                ?: mine.firstOrNull { it.start.takeLast(5) == b.md }
+            if (old != null) {
+                store.savePlan(old.copy(title = b.name, start = b.date, end = b.date, note = FROM_FAMTM))
+                mine.remove(old)
+                left.remove(b)
+                updated++
             }
+        }
+
+        // 3. what is left is somebody this journal has never had - unless the same name and day is
+        //    already here as a birthday typed by hand, which is still never duplicated.
+        for (b in left) {
+            if ((b.name.lowercase() + "|" + b.md) in have) continue
+            store.savePlan(Plan("", b.name, b.date, "", b.date, "", "birthday", FROM_FAMTM))
+            added++
+        }
+
+        // 4. and what FamTM no longer lists is taken out - but only against an answer that has
+        //    somebody in it. An empty list is the one answer that can mean FamTM never wrote its
+        //    own list (an older FamTM, its page never opened), and losing every birthday here to
+        //    that would be a worse trade than leaving them until the next real answer.
+        if (read != null && offered.isNotEmpty()) {
+            for (p in mine) {
+                store.removePlan(p.id)
+                removed++
+            }
+        }
+
         JSONObject()
             .put("added", added)
+            .put("updated", updated)
+            .put("removed", removed)
             .put("offered", offered.size)
             .put("installed", app != null)
             // Why there is nothing to add, in the one word the card can turn into a sentence:
@@ -220,7 +274,21 @@ class Bridge(private val ui: MainActivity) {
             // of the list FamTM will read, not of the list before the tap.
             .put("shared", store.plans().count { it.kind == "birthday" })
             .toString()
-    }.getOrDefault("{}")
+    }.getOrElse {
+        // 2.8 - A CALL THAT THREW IS NOT AN EMPTY FAMTM. The answer used to be "{}" here, and the
+        // page reads a missing why/offered as a successful read of a list with nobody in it - so a
+        // read that broke mid-tap was announced as "FamTM read fine". It gets a word of its own now.
+        JSONObject()
+            .put("added", 0)
+            .put("updated", 0)
+            .put("removed", 0)
+            .put("offered", -1)
+            .put("installed", runCatching { FamTm.installed(ui) }.getOrDefault(false))
+            .put("why", "failed")
+            .put("app", runCatching { FamTm.version(ui) ?: "" }.getOrDefault(""))
+            .put("shared", runCatching { store.plans().count { it.kind == "birthday" } }.getOrDefault(0))
+            .toString()
+    }
 
     /**
      * Everything the card needs, in one read: which FamTM is on the phone, how many birthdays it

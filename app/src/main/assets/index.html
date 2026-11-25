@@ -208,7 +208,7 @@ body.keys #day-body{padding-bottom:max(72px,16vh)}
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.7";
+const JOURNAL_PAGE = "2.8";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -570,28 +570,43 @@ const JOURNAL_PAGE = "2.7";
       (act ? '<span class="act">' + act + '</span>' : '') + '</button>';
   }
 
+  // 2.8 - AND IT SAYS WHAT A RE-CHECK DID. The tap used to name only the birthdays it ADDED, so a
+  // day corrected in FamTM, a person renamed there or someone taken out of it came back as "Already
+  // up to date" and the tap read as a button that does nothing. The app's answer carries corrected
+  // and removed counts now and the sentence names them. A call that did not answer at all - an app
+  // too old to have this, or a read that threw - is its own sentence too, instead of the "FamTM read
+  // fine, nobody with a birthday in it" the old code fell back to for every empty answer.
   function runSync() {
     var r = parse(call("syncBirthdays"), null) || {};
     refresh();
     var added = parseInt(r.added, 10) || 0;
+    var fixed = parseInt(r.updated, 10) || 0;
+    var gone = parseInt(r.removed, 10) || 0;
     var shared = parseInt(r.shared, 10) || 0;
     var offered = parseInt(r.offered, 10) || 0;
     var why = String(r.why || "");
     var fam = String(r.app || "");
     var mine = appVer() || JOURNAL_PAGE;
     var msg;
-    if (added > 0) {
-      msg = added === 1 ? "One new birthday added from FamTM" : added + " new birthdays added from FamTM";
+    if (!why || why === "failed") {
+      msg = "Couldn't ask FamTM for its list just now – nothing was changed, try again in a moment";
     } else if (why === "no-app") {
       msg = "FamTM isn't installed on this phone";
     } else if (why === "no-read") {
       msg = (fam ? "FamTM " + fam + " is installed" : "FamTM is installed") +
         ", but this copy of the journal" + (mine ? " (" + mine + ")" : "") +
         " couldn't read its list – update the journal app, open FamTM once, then try again";
-    } else if (offered === 0) {
-      msg = "FamTM read fine, and has nobody with a birthday in it yet – a born date with a day and a month is what it shares";
     } else {
-      msg = "Already up to date · " + (shared || 0) + " here";
+      var bits = [];
+      if (added > 0) bits.push(added === 1 ? "1 birthday added" : added + " birthdays added");
+      if (fixed > 0) bits.push(fixed === 1 ? "1 corrected" : fixed + " corrected");
+      if (gone > 0) bits.push(gone === 1 ? "1 no longer in FamTM" : gone + " no longer in FamTM");
+      if (bits.length) msg = "From FamTM · " + bits.join(" · ");
+      else if (offered === 0) {
+        msg = "FamTM read fine, and has nobody with a birthday in it yet – a born date with a day and a month is what it shares";
+      } else {
+        msg = "Already up to date · " + (shared || 0) + " here";
+      }
     }
     if (shared > 0) msg += " · " + (shared === 1 ? "1 shared back" : shared + " shared back");
     say(msg);
@@ -614,9 +629,17 @@ const JOURNAL_PAGE = "2.7";
     lastSync = now;
     var r = parse(call("syncBirthdays"), null) || {};
     var added = parseInt(r.added, 10) || 0;
-    if (added > 0) {
+    // 2.8 - a re-check corrects and removes as well as adds, and those change what is on the
+    // screen exactly as much as an arrival does. The page is redrawn for any of the three; the
+    // quiet line on open still speaks only for the ones that came in.
+    var changed = added +
+      (parseInt(r.updated, 10) || 0) +
+      (parseInt(r.removed, 10) || 0);
+    if (changed > 0) {
       refresh();
-      say(added === 1 ? "One new birthday added from FamTM" : added + " new birthdays added from FamTM");
+      if (added > 0) {
+        say(added === 1 ? "One new birthday added from FamTM" : added + " new birthdays added from FamTM");
+      }
     }
   }
 
@@ -629,6 +652,15 @@ const JOURNAL_PAGE = "2.7";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.8": {
+      date: "25 November 2026",
+      title: "Re-check brings FamTM's changes across",
+      notes: [
+        "Re-check used to only ever add. A day corrected in FamTM arrived a second time beside the old one, a person renamed there came in as a stranger, and someone taken out of FamTM stayed on the calendar for good - so a tap after a change over there looked like a button that did nothing. It now brings that birthday back in line: the same name and day is left alone, a corrected name or day is changed where it already is, and one FamTM no longer lists is taken out.",
+        "The line the tap prints names what it did - added, corrected, no longer in FamTM - instead of saying Already up to date whenever nothing was new.",
+        "A birthday typed in this journal is never touched: only the ones that came from FamTM are kept in line with it."
+      ]
+    },
     "2.7": {
       date: "25 November 2026",
       title: "The birthdays card says Re-check",

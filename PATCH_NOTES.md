@@ -1,3 +1,25 @@
+## 2.8 - 25 November 2026
+
+Re-check brings a change made in FamTM across, instead of only ever adding.
+
+- **A corrected birthday is corrected here.** The exchange used to append and nothing else: a day
+  put right in FamTM arrived as a second birthday beside the old one, a person renamed there came
+  in as a stranger, and someone taken out of FamTM stayed on the calendar for good. Re-check now
+  brings the ones that came from FamTM back in line with the list FamTM publishes - the same name
+  and day is left alone, a changed name or day is changed where it already is, and one FamTM no
+  longer lists is taken out.
+- **The tap says what it did.** The line under the card named only the birthdays it added, so a tap
+  after a correction or a removal read as "Already up to date" - a button that seemed to do
+  nothing. It now names each thing it changed: added, corrected, no longer in FamTM.
+- **A read that breaks says so.** A call that threw used to answer with nothing at all, and the
+  page read that as a FamTM that was read fine and has nobody in it. It now says the list could not
+  be asked for and that nothing was changed.
+- **What you typed is yours.** Only birthdays that came from FamTM are kept in line; a birthday
+  entered in this journal, and every event, is never touched.
+- **An empty FamTM never empties the journal.** Taking birthdays out happens only against a list
+  that has somebody in it, so an older FamTM that has not written its own list yet cannot take
+  every imported birthday with it.
+
 ## 2.7 - 25 November 2026
 
 The birthdays card says Re-check, so an updated FamTM is read again in one tap.

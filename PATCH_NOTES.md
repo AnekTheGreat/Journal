@@ -1,3 +1,24 @@
+## 2.9.1 - 25 November 2026
+
+Every new birthday a file holds arrives now, however many birthdays are already here.
+
+- **A new birthday is never written over an old one.** Loading a file matched an entry to a
+  birthday already in the journal on the same month and day when the name did not match, so a new
+  person who shared a day with one already here was written over that row: the old birthday changed
+  name and nothing was added. In a family of many birthdays that is no coincidence, so the more old
+  birthdays a journal had, the fewer of the file's new ones came in. Only the same name corrects a
+  row now, and everybody else is added beside the ones already here.
+- **What a file brings stays.** A birthday that came from a file is still kept in line with FamTM by
+  Re-check, but Re-check no longer takes it out. The list FamTM publishes can be older or shorter
+  than a backup carried from elsewhere, and those birthdays used to be removed again on the very
+  next open - which read as the file not being allowed to add anything while old birthdays were
+  present.
+- **A file made here travels as FamTM's.** Birthdays a file brought are marked as FamTM's list when a
+  file is saved here, so a file saved on one phone and loaded on another keeps the same meaning.
+- **Nothing else about the exchange changed.** A birthday typed in this journal is still never
+  touched, a name and a day still arrive rather than a whole entry, and a Re-check still corrects and
+  removes the ones that came from a live read.
+
 ## 2.9 - 25 November 2026
 
 The birthdays can be carried across by hand, in a file, when the two apps cannot read each other.

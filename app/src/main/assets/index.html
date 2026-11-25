@@ -208,7 +208,7 @@ body.keys #day-body{padding-bottom:max(72px,16vh)}
 <div id="say" class="hide"></div>
 
 <script>
-const JOURNAL_PAGE = "2.9";
+const JOURNAL_PAGE = "2.9.1";
 (function () {
   "use strict";
   var G = window.Journal || null;
@@ -652,6 +652,16 @@ const JOURNAL_PAGE = "2.9";
   // counted as never having read it, and the same notes came back on the next launch. It is on the
   // screen by then, which is all "read" ever meant.
   var WN = {
+    "2.9.1": {
+      date: "25 November 2026",
+      title: "A file's new birthdays all arrive now",
+      notes: [
+        "Loading a birthdays file into a journal that already had birthdays could bring in fewer than the file held. A new person who shares a month and a day with a birthday already here was matched on the day alone and written over that row - the old birthday changed name and nothing was added - so the more old birthdays were here, the less of the file came in. Only the same name corrects a row now, and everybody else is added beside the ones already here.",
+        "And what a file brings stays. A birthday that came from a file is still kept in line with FamTM by Re-check, but Re-check no longer takes it out: the list this phone publishes can be older or shorter than a backup carried from somewhere else, and those birthdays used to disappear again on the very next open.",
+        "A file made here marks those as FamTM's as well, so a file saved on one phone and loaded on another keeps the same meaning.",
+        "The first two are in the app, so install this version; the wording arrives on its own."
+      ]
+    },
     "2.9": {
       date: "25 November 2026",
       title: "The birthdays can travel in a file",

@@ -42,7 +42,9 @@ android {
         // lands here instead of beside an older copy of itself.
         // 2.9 - and the same list can be carried by hand: a birthdays file is saved here and read
         // back, including the backup FamTM writes, for a phone whose copy cannot read FamTM at all.
-        versionName = "2.9"
+        // 2.9.1 - and a file's new birthdays all arrive: only the same name corrects a row, and a
+        // birthday a file brought is never taken out by a Re-check against a shorter live list.
+        versionName = "2.9.1"
         // A version here is major.minor, so a part that is not there counts as zero instead of
         // crashing the build. Three digits of room per part: no two versions can share a code, and
         // a code that does not go up is a release Android refuses to install over the one before it.

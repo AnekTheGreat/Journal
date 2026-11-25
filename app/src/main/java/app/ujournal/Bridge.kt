@@ -215,7 +215,10 @@ class Bridge(private val ui: MainActivity) {
             if ((p.title.lowercase() + "|" + md) in seen) return@forEach
             val m = md.take(2).toIntOrNull() ?: return@forEach
             val d = md.takeLast(2).toIntOrNull() ?: return@forEach
-            out.add(BirthdayFile.Birthday(p.title, m, d, p.start.take(4).toIntOrNull() ?: 0, p.note == FROM_FAMTM))
+            // 2.9.1 - a birthday a file brought is FamTM's list too, so it travels as one: a file
+            // saved here and loaded on another phone keeps the same meaning there.
+            val famTm = p.note == FROM_FAMTM || p.note == FROM_FILE
+            out.add(BirthdayFile.Birthday(p.title, m, d, p.start.take(4).toIntOrNull() ?: 0, famTm))
             seen.add(p.title.lowercase() + "|" + md)
         }
         return BirthdayFile.write(out, PageStore.running(ui), app ?: "", LocalDate.now().toString())
@@ -236,9 +239,10 @@ class Bridge(private val ui: MainActivity) {
         }
         // What is already here, whoever typed it: a birthday is never added twice.
         val have = birthdays().toMutableSet()
-        // Only the ones that came from FamTM are corrected in place, exactly as a Re-check does.
+        // Only the ones that came from FamTM - live or in an earlier file - are corrected in place,
+        // exactly as a Re-check does. A birthday typed here is never touched by a file either.
         val mine = store.plans()
-            .filter { it.kind == "birthday" && it.note == FROM_FAMTM }
+            .filter { it.kind == "birthday" && (it.note == FROM_FAMTM || it.note == FROM_FILE) }
             .toMutableList()
         var added = 0
         var updated = 0
@@ -249,21 +253,27 @@ class Bridge(private val ui: MainActivity) {
                 same++
                 continue
             }
-            val note = if (b.fromFamTm) FROM_FAMTM else ""
+            // 2.9.1 - ONLY A NAME IS A MATCH, and this is the bug that was reported. It fell back to
+            // the same month and day, which in a family of many birthdays is no coincidence: a new
+            // person who shares a day with one already here was found by the day and written over
+            // that row, so the file's new birthday changed somebody's name instead of arriving - and
+            // the more old birthdays were here, the fewer of the new ones came in. A file cannot say
+            // whether a shared day is a rename or a second person, so only the same name corrects a
+            // row, and everyone else is added beside the ones already here.
             val old = mine.firstOrNull { it.title.equals(b.name, true) }
-                ?: mine.firstOrNull { it.start.takeLast(5) == b.md }
-            // A birthday this file did not come from FamTM must not be labelled as one: only then can
-            // Re-check keep it in line, and only then is it ever taken out.
             if (old != null) {
-                if (old.title == b.name && old.start == b.date && old.note == note) {
+                if (old.title == b.name && old.start == b.date) {
                     same++
                 } else {
-                    store.savePlan(old.copy(title = b.name, start = b.date, end = b.date, note = note))
+                    // The note is left as it was: a birthday a file brought stays one.
+                    store.savePlan(old.copy(title = b.name, start = b.date, end = b.date))
                     updated++
                 }
                 mine.remove(old)
             } else {
-                store.savePlan(Plan("", b.name, b.date, "", b.date, "", "birthday", note))
+                store.savePlan(
+                    Plan("", b.name, b.date, "", b.date, "", "birthday", if (b.fromFamTm) FROM_FILE else "")
+                )
                 added++
             }
             have.add(key)
@@ -301,9 +311,11 @@ class Bridge(private val ui: MainActivity) {
         // older than this reconcile and still holds for a birthday entered by hand.
         val have = birthdays()
 
-        // What came from FamTM, and what is still waiting to be matched against it.
+        // What came from FamTM, and what is still waiting to be matched against it. A birthday a
+        // file brought counts here too: it is the same list, and a change made over there should
+        // correct it where it is instead of arriving beside it.
         val mine = store.plans()
-            .filter { it.kind == "birthday" && it.note == FROM_FAMTM }
+            .filter { it.kind == "birthday" && (it.note == FROM_FAMTM || it.note == FROM_FILE) }
             .toMutableList()
         val left = offered.toMutableList()
         var added = 0
@@ -321,7 +333,11 @@ class Bridge(private val ui: MainActivity) {
             val old = mine.firstOrNull { it.title.equals(b.name, true) }
                 ?: mine.firstOrNull { it.start.takeLast(5) == b.md }
             if (old != null) {
-                store.savePlan(old.copy(title = b.name, start = b.date, end = b.date, note = FROM_FAMTM))
+                // 2.9.1 - the row keeps the note it had. A birthday a file brought is kept in line
+                // with FamTM like any other, but it is not turned into one the removal below may
+                // take out: a file can know people the list this phone publishes does not.
+                val note = if (old.note == FROM_FILE) FROM_FILE else FROM_FAMTM
+                store.savePlan(old.copy(title = b.name, start = b.date, end = b.date, note = note))
                 mine.remove(old)
                 left.remove(b)
                 updated++
@@ -342,6 +358,12 @@ class Bridge(private val ui: MainActivity) {
         //    that would be a worse trade than leaving them until the next real answer.
         if (read != null && offered.isNotEmpty()) {
             for (p in mine) {
+                // 2.9.1 - A FILE'S BIRTHDAYS ARE NEVER TAKEN OUT. The list FamTM publishes can be
+                // older or shorter than a backup carried from elsewhere, and a file that knows
+                // somebody the provider does not used to have that birthday removed again on the
+                // very next open - which read as the file not being allowed to add anything while
+                // there were old birthdays here. Only the rows that came from a live read go.
+                if (p.note != FROM_FAMTM) continue
                 store.removePlan(p.id)
                 removed++
             }
@@ -428,6 +450,13 @@ class Bridge(private val ui: MainActivity) {
     private companion object {
         /** Where an imported birthday says it came from, so one is recognisable in the plans list. */
         const val FROM_FAMTM = "From FamTM"
+        /**
+         * 2.9.1 - and where one that arrived in a file says it did. It is FamTM's list all the same,
+         * so a Re-check still corrects it, but it is never one of the rows a Re-check takes out: the
+         * list this phone publishes can be older than the file, and the file is the half that was
+         * chosen by hand.
+         */
+        const val FROM_FILE = "From a birthdays file"
         /** The preferences the page's "shown once" markers live in, beside the page's own copy. */
         const val SEEN = "seen"
     }
